@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import logging
+import time
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,10 +33,13 @@ def pcd(input_file, stride):
     tri_mesh_o3d = create_open_3d_mesh(np.asarray(tri_mesh.triangles), pc_points)
     pcd_raw = create_open_3d_pcd(pc_raw[:, :3], pc_raw[:, 3])
     logger.info("Visualizing Point Cloud - Size: %dX%d ; # Points: %d", depth_image.shape[0], depth_image.shape[1],  pc_raw.shape[0])
-    o3d.io.write_triangle_mesh("noisy_mesh_ds_4.ply", tri_mesh_o3d)
+    t1 = time.perf_counter()
+    tri_mesh_o3d = tri_mesh_o3d.filter_smooth_laplacian(15)
+    t2 = time.perf_counter()
+    tri_mesh_o3d.compute_triangle_normals()
+    print(t2-t1)
     plt.imshow(depth_image)
     plt.show()
-
     # pc_2 , _, _= load_pcd_file(DEFAULT_PPB_FILE_SECONDARY, ds=1)
     # pcd_2 = create_open_3d_pcd(pc_2[:, :3], pc_2[:, 3])
     # plot_meshes([pcd, pcd_2])
