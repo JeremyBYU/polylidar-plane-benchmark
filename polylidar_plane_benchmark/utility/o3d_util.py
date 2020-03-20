@@ -17,6 +17,12 @@ def create_open_3d_pcd(points, clusters=None):
         pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
     return pcd
 
+def create_open_3d_mesh(tri_mesh):
+    """Create an Open3D Mesh given a Polylidar TriMesh"""
+    triangles = np.asarray(tri_mesh.triangles)
+    vertices = np.asarray(tri_mesh.vertices)
+    create_open_3d_mesh(triangles, vertices)
+
 def create_open_3d_mesh(triangles, points, triangle_normals=None, color=COLOR_PALETTE[0]):
     """Create an Open3D Mesh given triangles vertices
 
@@ -38,6 +44,7 @@ def create_open_3d_mesh(triangles, points, triangle_normals=None, color=COLOR_PA
         # Open 3D expects triangles to be counter clockwise
         triangles = np.ascontiguousarray(np.flip(triangles, 1))
     mesh_2d.triangles = o3d.utility.Vector3iVector(triangles)
+    print(points.shape, points.dtype)
     mesh_2d.vertices = o3d.utility.Vector3dVector(points)
     if triangle_normals is None:
         mesh_2d.compute_vertex_normals()

@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import pypcd.pypcd as pypcd
-from polylidar import extract_point_cloud_from_float_depth
+from polylidar import extract_point_cloud_from_float_depth, extract_tri_mesh_from_organized_point_cloud
 from scipy.spatial.transform import Rotation as R
 
 import cv2
@@ -98,7 +98,14 @@ def estimate_intrinsics_matrix(depth_image, pc_gt):
 
     return intrinsics, dist, rotation_matrix, translation
 
-def load_pcd_file(fpath, ds=None):
+
+def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2):
+    print(pcd.shape, pcd.dtype)
+    tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd, rows, cols, stride)
+    return tri_mesh
+
+
+def load_pcd_file(fpath, stride=2):
     pc = pypcd.PointCloud.from_path(fpath)
     x = pc.pc_data['x']
     y = pc.pc_data['y']
@@ -112,19 +119,44 @@ def load_pcd_file(fpath, ds=None):
     pc_np = np.column_stack((x, y, z, i))
     # Image Point Cloud (organized)
     pc_np_image = np.reshape(pc_np, (width, height, 4))
-    depth_image = np.ascontiguousarray(pc_np_image[:, :, 0])
 
-    if ds is not None:
-        pc_np_image = pc_np_image[::ds, ::ds, :]
+    if stride is not None:
+        pc_np_image = pc_np_image[::stride, ::stride, :]
         total_points_ds = pc_np_image.shape[0] * pc_np_image.shape[1]
         pc_np = np.reshape(pc_np_image, (total_points_ds, 4))
     
-    intrinsics = get_intrinsic_matrix(depth_image)
-    # intrinsics, distortion, rotation_matrix, tranlsation  = estimate_intrinsics_matrix(depth_image, pc_np_image)
-    # rm = R.from_matrix(rotation_matrix)
+    depth_image = np.ascontiguousarray(pc_np_image[:, :, 0])
+    pc_np  = pc_np.astype(np.float64)
 
-    pc_from_depth = depth_to_pc(depth_image, intrinsics, ds, distortion=None, rm=None)
-    pc_from_depth_rotated = pc_from_depth
+    return pc_np, depth_image
 
-    return pc_np, pc_from_depth_rotated, depth_image
+# def load_pcd_file(fpath, ds=None):
+#     pc = pypcd.PointCloud.from_path(fpath)
+#     x = pc.pc_data['x']
+#     y = pc.pc_data['y']
+#     z = pc.pc_data['z']
+#     i = pc.pc_data['intensity']
+
+#     width = int(pc.get_metadata()['width'])
+#     height = int(pc.get_metadata()['height'])
+
+#     # Flat Point Cloud
+#     pc_np = np.column_stack((x, y, z, i))
+#     # Image Point Cloud (organized)
+#     pc_np_image = np.reshape(pc_np, (width, height, 4))
+#     depth_image = np.ascontiguousarray(pc_np_image[:, :, 0])
+
+#     if ds is not None:
+#         pc_np_image = pc_np_image[::ds, ::ds, :]
+#         total_points_ds = pc_np_image.shape[0] * pc_np_image.shape[1]
+#         pc_np = np.reshape(pc_np_image, (total_points_ds, 4))
+    
+#     intrinsics = get_intrinsic_matrix(depth_image)
+#     # intrinsics, distortion, rotation_matrix, tranlsation  = estimate_intrinsics_matrix(depth_image, pc_np_image)
+#     # rm = R.from_matrix(rotation_matrix)
+
+#     pc_from_depth = depth_to_pc(depth_image, intrinsics, ds, distortion=None, rm=None)
+#     pc_from_depth_rotated = pc_from_depth
+
+#     return pc_np, pc_from_depth_rotated, depth_image
 
