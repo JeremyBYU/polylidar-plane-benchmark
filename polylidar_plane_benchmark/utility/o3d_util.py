@@ -4,10 +4,28 @@ import open3d as o3d
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from scipy.spatial.transform import Rotation as R
+from polylidar import MatrixDouble, MatrixInt, create_tri_mesh_copy
 
-from polylidar_plane_benchmark.utility.helper import get_colors
 
 COLOR_PALETTE = list(map(colors.to_rgb, plt.rcParams['axes.prop_cycle'].by_key()['color']))
+
+
+def open_3d_mesh_to_tri_mesh(mesh: o3d.geometry.TriangleMesh):
+    triangles = np.asarray(mesh.triangles)
+    vertices = np.asarray(mesh.vertices)
+    vertices_mat = MatrixDouble(vertices)
+    triangles_mat = MatrixInt(triangles)
+    triangles_mat_np = np.asarray(triangles_mat)
+
+    # print(triangles, triangles.dtype)
+    # print(triangles_mat_np, triangles_mat_np.dtype)
+
+    tri_mesh = create_tri_mesh_copy(vertices_mat, triangles_mat)
+    return tri_mesh
+
+def get_colors(inp, colormap=plt.cm.viridis, vmin=None, vmax=None):
+    norm = plt.Normalize(vmin, vmax)
+    return colormap(norm(inp))
 
 def create_open_3d_pcd(points, clusters=None):
     pcd = o3d.geometry.PointCloud()
@@ -44,7 +62,7 @@ def create_open_3d_mesh(triangles, points, triangle_normals=None, color=COLOR_PA
         # Open 3D expects triangles to be counter clockwise
         triangles = np.ascontiguousarray(np.flip(triangles, 1))
     mesh_2d.triangles = o3d.utility.Vector3iVector(triangles)
-    print(points.shape, points.dtype)
+
     mesh_2d.vertices = o3d.utility.Vector3dVector(points)
     if triangle_normals is None:
         mesh_2d.compute_vertex_normals()
