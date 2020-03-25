@@ -9,6 +9,7 @@ from polylidar import MatrixDouble, MatrixInt, create_tri_mesh_copy
 
 COLOR_PALETTE = list(map(colors.to_rgb, plt.rcParams['axes.prop_cycle'].by_key()['color']))
 
+def flatten(l): return [item for sublist in l for item in sublist]
 
 def open_3d_mesh_to_tri_mesh(mesh: o3d.geometry.TriangleMesh):
     triangles = np.asarray(mesh.triangles)
@@ -27,11 +28,11 @@ def get_colors(inp, colormap=plt.cm.viridis, vmin=None, vmax=None):
     norm = plt.Normalize(vmin, vmax)
     return colormap(norm(inp))
 
-def create_open_3d_pcd(points, clusters=None):
+def create_open_3d_pcd(points, clusters=None, cmap=plt.cm.tab20):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     if clusters is not None:
-        colors = get_colors(clusters, colormap=plt.cm.tab20)
+        colors = get_colors(clusters, colormap=cmap)
         pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
     return pcd
 

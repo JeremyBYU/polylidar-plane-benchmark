@@ -9,11 +9,11 @@ from os.path import join, abspath, dirname
 # Set up Logger
 logger = logging.getLogger("PPB")
 logger.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+# ch = logging.StreamHandler()
+# ch.setLevel(logging.INFO)
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# ch.setFormatter(formatter)
+# logger.addHandler(ch)
 
 
 

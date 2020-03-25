@@ -24,9 +24,6 @@ import numpy as np
 from polylidar_plane_benchmark.scripts.visualize import visualize
 
 
-logger = logging.getLogger("PPB")
-
-
 @click.group()
 def cli():
     """Generates data and run benchmarks for concave algorithms"""
