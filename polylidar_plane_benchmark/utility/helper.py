@@ -50,10 +50,10 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5):
 
 def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.005):
     " Apply polygon filtering algorithm, return Open3D Mesh Lines "
-    config_pp = dict(filter=dict(hole_area=dict(min=0.025, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.05)),
+    config_pp = dict(filter=dict(hole_area=dict(min=0.025, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.01)),
                      positive_buffer=0.00, negative_buffer=0.00, simplify=0.02)
-    # config_pp = dict(filter=dict(hole_area=dict(min=0.00, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.5)),
-    #                  positive_buffer=0.00, negative_buffer=0.0, simplify=0.01)
+    # config_pp = dict(filter=dict(hole_area=dict(min=0.00, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.0001)),
+    #                  positive_buffer=0.00, negative_buffer=0.0, simplify=0.00)
     t1 = time.perf_counter()
     planes, obstacles = filter_planes_and_holes(polygons, points, config_pp, rm=rm)
     t2 = time.perf_counter()
@@ -64,14 +64,14 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
                                 polylidar_kwargs=dict(alpha=0.0, lmax=0.20, min_triangles=10,
-                                                      z_thresh=0.01, norm_thresh=0.98, norm_thresh_min=0.95, min_hole_vertices=6)):
+                                                      z_thresh=0.02, norm_thresh=0.98, norm_thresh_min=0.95, min_hole_vertices=6)):
 
     pl = Polylidar3D(**polylidar_kwargs)
     avg_peaks_mat = MatrixDouble(avg_peaks)
     t0 = time.perf_counter()
     all_planes, all_polygons = pl.extract_planes_and_polygons(tri_mesh, avg_peaks_mat)
     t1 = time.perf_counter()
-
+    
     polylidar_time = (t1 - t0) * 1000
     logger.info("Polygon Extraction - Took (ms): %.2f", polylidar_time)
     vertices = np.asarray(tri_mesh.vertices)
@@ -91,10 +91,14 @@ def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
 def get_image_peaks(ico_chart, ga, level=2, **kwargs):
 
     normalized_bucket_counts_by_vertex = ga.get_normalized_bucket_counts_by_vertex(True)
+
     ico_chart.fill_image(normalized_bucket_counts_by_vertex)
-    find_peaks_kwargs = dict(threshold_abs=5, min_distance=1, exclude_border=False, indices=False)
-    cluster_kwargs = dict(t=0.15, criterion='distance')
-    average_filter = dict(min_total_weight=0.02)
+    # image = np.asarray(ico_chart.image)
+    # plt.imshow(image)
+    # plt.show()
+    find_peaks_kwargs = dict(threshold_abs=2, min_distance=1, exclude_border=False, indices=False)
+    cluster_kwargs = dict(t=0.10, criterion='distance')
+    average_filter = dict(min_total_weight=0.01)
 
     t1 = time.perf_counter()
     peaks, clusters, avg_peaks, avg_weights = find_peaks_from_ico_charts(ico_chart, np.asarray(
@@ -154,7 +158,8 @@ def create_meshes(pc_points, stride=2, loops=5):
 
     # Perform Smoothing
     t1 = time.perf_counter()
-    tri_mesh_o3d = tri_mesh_o3d.filter_smooth_laplacian(loops)
+    if loops > 1:
+        tri_mesh_o3d = tri_mesh_o3d.filter_smooth_laplacian(loops)
     t2 = time.perf_counter()
     tri_mesh_o3d.compute_triangle_normals()
 

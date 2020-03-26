@@ -23,8 +23,12 @@ TEST_FIXTURES_DIR = (MAIN_DIR / 'data').resolve()
 TEST_FIXTURES_DIR
 
 SYNPEB_DIR = TEST_FIXTURES_DIR / "synpeb"
+SYNPEB_MESHES_DIR = TEST_FIXTURES_DIR / "synpeb_meshes"
 SYNPEB_DIR_TEST = SYNPEB_DIR / "test"
 SYNPEB_DIR_TRAIN = SYNPEB_DIR / "train"
+
+SYNPEB_DIR_TEST_GT = SYNPEB_DIR_TEST / "gt"
+SYNPEB_DIR_TRAIN_GT = SYNPEB_DIR_TRAIN / "gt"
 
 SYNPEB_DIR_TEST_ALL = [SYNPEB_DIR_TEST / "var{}".format(i) for i in range(1, 5)]
 SYNPEB_DIR_TRAIN_ALL = [SYNPEB_DIR_TRAIN / "var{}".format(i) for i in range(1, 5)]
@@ -33,6 +37,4 @@ DEFAULT_PPB_FILE = SYNPEB_DIR_TRAIN_ALL[0] / "pc_01.pcd"
 DEFAULT_PPB_FILE_SECONDARY = SYNPEB_DIR_TRAIN_ALL[0] / "pc_02.pcd"
 
 
-
-
-ALPHABET_DIR = join(TEST_FIXTURES_DIR, 'alphabet')
+SYNPEB_ALL_FNAMES = ["pc_{:02}.pcd".format(i) for i in range(1, 31)]
