@@ -50,7 +50,7 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5):
 
 def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.005):
     " Apply polygon filtering algorithm, return Open3D Mesh Lines "
-    config_pp = dict(filter=dict(hole_area=dict(min=0.025, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.01)),
+    config_pp = dict(filter=dict(hole_area=dict(min=0.025, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.05)),
                      positive_buffer=0.00, negative_buffer=0.00, simplify=0.02)
     # config_pp = dict(filter=dict(hole_area=dict(min=0.00, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.0001)),
     #                  positive_buffer=0.00, negative_buffer=0.0, simplify=0.00)
@@ -63,7 +63,7 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 
 
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
-                                polylidar_kwargs=dict(alpha=0.0, lmax=0.20, min_triangles=10,
+                                polylidar_kwargs=dict(alpha=0.0, lmax=0.20, min_triangles=100,
                                                       z_thresh=0.02, norm_thresh=0.98, norm_thresh_min=0.95, min_hole_vertices=6)):
 
     pl = Polylidar3D(**polylidar_kwargs)
