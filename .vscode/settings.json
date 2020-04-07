@@ -1,6 +1,7 @@
 {
     "python.pythonPath": "/home/jeremy/miniconda3/envs/ppb/bin/python",
     "cSpell.words": [
+        "cupy",
         "pypcd"
     ],
     "files.associations": {
