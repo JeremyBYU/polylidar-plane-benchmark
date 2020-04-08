@@ -15,7 +15,8 @@ from polylidar import extract_point_cloud_from_float_depth, extract_tri_mesh_fro
 from polylidar.polylidarutil.open3d_util import construct_grid, create_lines, flatten
 from polylidar.polylidarutil.plane_filtering import filter_planes_and_holes
 
-from polylidar_plane_benchmark.utility.o3d_util import create_open_3d_pcd, plot_meshes, get_arrow, create_open_3d_mesh, open_3d_mesh_to_tri_mesh, assign_vertex_colors, get_colors
+from polylidar_plane_benchmark.utility.o3d_util import (
+    create_open_3d_pcd, plot_meshes, get_arrow, create_open_3d_mesh, open_3d_mesh_to_tri_mesh, assign_vertex_colors, get_colors, assign_some_vertex_colors)
 from polylidar_plane_benchmark import logger
 
 from fastga import GaussianAccumulatorS2, MatX3d, IcoCharts
@@ -25,17 +26,11 @@ from fastga.o3d_util import get_arrow, get_pc_all_peaks, get_arrow_normals
 import organizedpointfilters as opf
 import organizedpointfilters.cuda as opf_cuda
 from organizedpointfilters import Matrix3f, Matrix3fRef
-
+import colorcet as cc
 
 # Set the random seeds for determinism
 random.seed(0)
 np.random.seed(0)
-
-
-def tab40():
-    """A discrete colormap with 40 unique colors"""
-    colors_ = np.vstack([plt.cm.tab20c.colors, plt.cm.tab20b.colors])
-    return colors.ListedColormap(colors_)
 
 
 def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5):
@@ -48,13 +43,13 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5):
     # Get just the points, no intensity
     pc_points = np.ascontiguousarray(pc_raw[:, :3])
     # Create Open3D point cloud
-    cmap = tab40()
+    cmap = cc.cm.glasbey_bw
     pcd_raw = create_open_3d_pcd(pc_raw[:, :3], pc_raw[:, 3], cmap=cmap)
 
     # tri_mesh, tri_mesh_o3d = create_meshes(pc_points, stride=stride, loops=loops)
-    tri_mesh, tri_mesh_o3d = create_meshes_cuda(pc_image, loops=loops, _lambda=_lambda)
+    tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda(pc_image, loops=loops, _lambda=_lambda)
 
-    return pc_raw, pcd_raw, tri_mesh, tri_mesh_o3d
+    return pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, timings
 
 
 def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.005):
@@ -72,8 +67,9 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 
 
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
-                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.20, min_triangles=100,
-                                                                z_thresh=0.02, norm_thresh=0.98, norm_thresh_min=0.98, min_hole_vertices=6, task_threads=4)):
+                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=100,
+                                                                z_thresh=0.02, norm_thresh=0.98, norm_thresh_min=0.98, min_hole_vertices=6, task_threads=4),
+                                          filter_polygons=True):
 
     pl = Polylidar3D(**polylidar_kwargs)
     avg_peaks_mat = MatrixDouble(avg_peaks)
@@ -83,18 +79,55 @@ def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
 
     polylidar_time = (t1 - t0) * 1000
     logger.info("Polygon Extraction - Took (ms): %.2f", polylidar_time)
-    vertices = np.asarray(tri_mesh.vertices)
     all_poly_lines = []
-    for i in range(avg_peaks.shape[0]):
-        avg_peak = avg_peaks[i, :]
-        rm, _ = R.align_vectors([[0, 0, 1]], [avg_peak])
-        polygons_for_normal = all_polygons[i]
-        # print(polygons_for_normal)
-        if len(polygons_for_normal) > 0:
-            poly_lines, _ = filter_and_create_open3d_polygons(vertices, polygons_for_normal, rm=rm)
-            all_poly_lines.extend(poly_lines)
+    if filter_polygons:
+        vertices = np.asarray(tri_mesh.vertices)
+        for i in range(avg_peaks.shape[0]):
+            avg_peak = avg_peaks[i, :]
+            rm, _ = R.align_vectors([[0, 0, 1]], [avg_peak])
+            polygons_for_normal = all_polygons[i]
+            # print(polygons_for_normal)
+            if len(polygons_for_normal) > 0:
+                poly_lines, _ = filter_and_create_open3d_polygons(vertices, polygons_for_normal, rm=rm)
+                all_poly_lines.extend(poly_lines)
 
-    return all_planes, all_polygons, all_poly_lines
+    timings = dict(polylidar=polylidar_time)
+
+    return all_planes, all_polygons, all_poly_lines, timings
+
+
+def convert_planes_to_classified_point_cloud(all_planes, tri_mesh, all_normals, filter_kwargs=dict()):
+    logger.info("Total number of normals identified: %d", len(all_planes))
+    all_classified_planes = []
+
+    # classified_plane = dict(triangles=None, points=None, class_id=None, normal=None)
+    plane_counter = 0
+    vertices = np.asarray(tri_mesh.vertices)
+    triangles = np.asarray(tri_mesh.triangles)
+    for i, normal_planes in enumerate(all_planes):
+        logger.debug("Number of Planes in normal: %d", len(normal_planes))
+        normal = all_normals[i, :]
+        for plane in normal_planes:
+            logger.debug("Number of triangles in plane: %d", len(plane))
+            plane_triangles = np.asarray(plane)
+            point_indices = np.unique(triangles[plane_triangles, :].flatten())
+            points = np.ascontiguousarray(vertices[point_indices, :])
+            normal = np.copy(normal)
+            classified_plane = dict(triangles=plane_triangles, point_indices=point_indices,
+                                    points=points, class_id=plane_counter, normal=normal)
+            all_classified_planes.append(classified_plane)
+            plane_counter += 1
+    logger.info("A total of %d planes are captured", len(all_classified_planes))
+    return all_classified_planes
+
+
+def paint_planes(all_planes, tri_mesh_o3d):
+    number_of_planes = len(all_planes)
+    all_colors = cc.cm.glasbey_bw(range(number_of_planes))[:, :3]
+    all_triangles = [plane['triangles'] for plane in all_planes]
+
+    new_mesh = assign_some_vertex_colors(tri_mesh_o3d, all_triangles, all_colors)
+    return new_mesh
 
 
 def get_image_peaks(ico_chart, ga, level=2, **kwargs):
@@ -117,9 +150,12 @@ def get_image_peaks(ico_chart, ga, level=2, **kwargs):
     pcd_all_peaks = get_pc_all_peaks(peaks, clusters, gaussian_normals_sorted)
     arrow_avg_peaks = get_arrow_normals(avg_peaks, avg_weights)
 
+    elapsed_time = (t2 - t1) * 1000
+    timings = dict(fastga_peak=elapsed_time)
+
     logger.info("Peak Detection - Took (ms): %.2f", (t2 - t1) * 1000)
 
-    return avg_peaks, pcd_all_peaks, arrow_avg_peaks
+    return avg_peaks, pcd_all_peaks, arrow_avg_peaks, timings
 
 
 def down_sample_normals(triangle_normals, ds=4, min_samples=10000, flip_normals=False, **kwargs):
@@ -145,21 +181,27 @@ def extract_all_dominant_plane_normals(tri_mesh, level=5, **kwargs):
     t1 = time.perf_counter()
     ga.integrate(triangle_normals_ds_mat)
     t2 = time.perf_counter()
-    gaussian_normals = np.asarray(ga.get_bucket_normals())
-    accumulator_counts = np.asarray(ga.get_normalized_bucket_counts())
 
     logger.info("Gaussian Accumulator - Normals Sampled: %d; Took (ms): %.2f",
                 triangle_normals_ds.shape[0], (t2 - t1) * 1000)
+
+    avg_peaks, pcd_all_peaks, arrow_avg_peaks, timings_dict = get_image_peaks(ico_chart, ga, level=level)
+
+    gaussian_normals = np.asarray(ga.get_bucket_normals())
+    accumulator_counts = np.asarray(ga.get_normalized_bucket_counts())
 
     # Visualize the Sphere
     refined_icosahedron_mesh = create_open_3d_mesh(np.asarray(ga.mesh.triangles), np.asarray(ga.mesh.vertices))
     color_counts = get_colors(accumulator_counts)[:, :3]
     colored_icosahedron = assign_vertex_colors(refined_icosahedron_mesh, color_counts)
 
-    # 2D peak detection
-    avg_peaks, pcd_all_peaks, arrow_avg_peaks = get_image_peaks(ico_chart, ga, level=level)
+    elapsed_time_fastga = (t2 - t1) * 1000
+    elapsed_time_peak = timings_dict['fastga_peak']
+    elapsed_time_total = elapsed_time_fastga + elapsed_time_peak
 
-    return avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron
+    timings = dict(fastga_total=elapsed_time_total, fastga_integrate=elapsed_time_fastga, fastga_peak=elapsed_time_peak)
+
+    return avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, timings
 
 
 def create_meshes(pc_points, stride=2, loops=5, _lambda=0.5,):
@@ -193,11 +235,15 @@ def create_mesh_from_organized_point_cloud_with_o3d(pcd: np.ndarray, rows=500, c
 
     pcd_mat = MatrixDouble(pcd_, copy=True)
     pcd_mat_np = np.asarray(pcd_mat)
+    t1 = time.perf_counter()
     tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride)
+    t2 = time.perf_counter()
+
+    time_elapsed = (t2 - t1) * 1000
 
     tri_mesh_o3d = create_open_3d_mesh(np.asarray(tri_mesh.triangles), pcd_)
 
-    return tri_mesh, tri_mesh_o3d
+    return tri_mesh, tri_mesh_o3d, time_elapsed
 
 
 def laplacian_opc(opc, loops=5, _lambda=0.5, kernel_size=3):
@@ -223,13 +269,14 @@ def laplacian_opc_cuda(opc, loops=5, _lambda=0.5, **kwargs):
     t1 = time.perf_counter()
     opc_float_out = opf_cuda.kernel.laplacian_K3_cuda(opc_float, loops=loops, _lambda=_lambda, **kwargs)
     t2 = time.perf_counter()
+    time_elapsed = (t2 - t1) * 1000
 
-    logger.info("OPC CUDA Laplacian Mesh Smoothing Took (ms): %.2f", (t2 - t1) * 1000)
+    logger.info("OPC CUDA Laplacian Mesh Smoothing Took (ms): %.2f", time_elapsed)
 
     # only for visualization purposes here
     opc_out = opc_float_out.astype(np.float64)
 
-    return opc_out
+    return opc_out, time_elapsed
 
 
 def create_meshes_cuda(opc, loops=5, _lambda=0.5):
@@ -245,10 +292,11 @@ def create_meshes_cuda(opc, loops=5, _lambda=0.5):
     Returns:
         [tuple(mesh, o3d_mesh)] -- polylidar mesh and o3d mesh reperesentation
     """
-    smooth_opc = laplacian_opc_cuda(opc, loops=loops, _lambda=_lambda)
-    tri_mesh, tri_mesh_o3d = create_mesh_from_organized_point_cloud_with_o3d(smooth_opc)
+    smooth_opc, time_elapsed_laplacian = laplacian_opc_cuda(opc, loops=loops, _lambda=_lambda)
+    tri_mesh, tri_mesh_o3d, time_elapsed_mesh = create_mesh_from_organized_point_cloud_with_o3d(smooth_opc)
 
-    return tri_mesh, tri_mesh_o3d
+    timings = dict(laplacian=time_elapsed_laplacian, mesh=time_elapsed_mesh)
+    return tri_mesh, tri_mesh_o3d, timings
 
 
 def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2):

@@ -6,7 +6,7 @@ setup(
     scripts=[],
 
     install_requires=['Click', 'numpy', 'open3d', 'colorama','shapely','scipy', 'matplotlib','descartes', 'pandas', 'seaborn', 'tqdm',
-     'pypcd@https://api.github.com/repos/jeremybyu/pypcd/tarball/'],
+     'pypcd@https://api.github.com/repos/jeremybyu/pypcd/tarball/', 'colorcet'],
 
     entry_points='''
         [console_scripts]
