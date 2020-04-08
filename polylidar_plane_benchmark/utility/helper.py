@@ -37,8 +37,6 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5):
     """Load PCD and Meshes
     """
     pc_raw, pc_image = load_pcd_file(input_file, stride)
-    logger.info("Visualizing Point Cloud - Size: %dX%d ; # Points: %d",
-                pc_image.shape[0], pc_image.shape[1], pc_raw.shape[0])
 
     # Get just the points, no intensity
     pc_points = np.ascontiguousarray(pc_raw[:, :3])
@@ -48,6 +46,9 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5):
 
     # tri_mesh, tri_mesh_o3d = create_meshes(pc_points, stride=stride, loops=loops)
     tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda(pc_image, loops=loops, _lambda=_lambda)
+
+    logger.info("Visualizing Point Cloud - Size: %dX%d ; # Points: %d; # Triangles: %d",
+                pc_image.shape[0], pc_image.shape[1], pc_raw.shape[0], np.asarray(tri_mesh.triangles).shape[0])
 
     return pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, timings
 
@@ -67,7 +68,7 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 
 
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
-                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=100,
+                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=200,
                                                                 z_thresh=0.02, norm_thresh=0.98, norm_thresh_min=0.98, min_hole_vertices=6, task_threads=4),
                                           filter_polygons=True):
 

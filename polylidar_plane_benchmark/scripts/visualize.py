@@ -108,33 +108,17 @@ def planes(input_file, stride, loops, llambda):
     all_planes, _,  _, polylidar_timings = extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks, filter_polygons=False)
 
     all_timings = dict(**mesh_timings, **fastga_timings, **polylidar_timings)
-    # print(all_timings)
-    # def convert_planes_to_classified_point_cloud(all_planes, tri_mesh, all_normals, filter_kwargs=dict()):
     all_planes_classified = convert_planes_to_classified_point_cloud(all_planes, tri_mesh, avg_peaks)
-    results, auxiliary = evaluate(pc_image, all_planes_classified)
-    # all_planes_classified = all_planes_classified[34:35]
+
+    # paint the planes
     tri_mesh_o3d_painted = paint_planes(all_planes_classified, tri_mesh_o3d)
-
+    # get results
+    results, auxiliary = evaluate(pc_image, all_planes_classified)
+    
+    # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg,gray=ms_label_under_seg
     invalid_plane_markers = mark_invalid_planes(pc_raw, auxiliary, all_planes_classified)
-    invalid_plane_markers = []
-    # Get just the points, no intensity
+    # invalid_plane_markers = []
 
-    # Create Open3D point cloud
-    # pc_raw_filt = pc_raw[pc_raw[:, 3] == 22.0, :]
-    # pc_points = np.ascontiguousarray(pc_raw_filt[:, :3])
-    # pcd_raw = create_open_3d_pcd(pc_points[:, :3])
-    # pcd_raw.paint_uniform_color([0, 1, 0])
-
-    # bad_indices = np.array([ 7768,  8018,  8019,  8269,  8516,  8520,  8770,  9021,  9271,  9517,  9522,  9767,  9772, 10023, 10273, 10523, 10524, 10774, 11025, 11275, 11519, 11776, 12277, 12528, 12778, 13029, 13279, 13529, 13780, 14030, 14281, 14782, 15283, 15533,
-    #    15783, 15784, 16034, 16284, 16285, 16535, 16786, 17036, 17286, 17287, 17537, 17787, 17788, 18038, 18288, 18539, 18789, 19040, 19290, 19540, 19541, 19791, 20041, 20042, 20292, 20542, 20543, 20793, 21043, 21044, 21294, 21544, 21545, 21794,
-    #    21795, 22045])
-    # bad_indices = bad_indices.astype(np.int)
-    # pc_bad = pc_raw[bad_indices, :]
-    # pcd_bad = create_open_3d_pcd(pc_bad[:, :3])
-    # pcd_bad.paint_uniform_color([0.5, 0.5, 1.0])
-
-
-    # plot_meshes([pcd_raw, pcd_bad, tri_mesh_o3d_painted])
     plot_meshes([pcd_raw, tri_mesh_o3d_painted, *invalid_plane_markers])
 
 

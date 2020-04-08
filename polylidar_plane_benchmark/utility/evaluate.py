@@ -60,8 +60,8 @@ def evaluate(gt_image, planes_ms, tcomp=0.70):
     # print(point_count_ms)
     overlap_fraction_gt = overlap / point_count_gt[:, None]
     overlap_fraction_ms = (overlap.T / point_count_ms[:, None]).T
-    print(overlap_fraction_ms)
-    print(overlap_fraction_gt)
+    # print(overlap_fraction_ms)
+    # print(overlap_fraction_gt)
     # import ipdb; ipdb.set_trace()
 
     # which ROWS of overlap_fraction_ms have at least 2 columns greater than tcomp (0.80)
