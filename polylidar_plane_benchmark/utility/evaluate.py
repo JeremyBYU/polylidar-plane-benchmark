@@ -7,7 +7,7 @@ SYNPEB_VALID_INDICES = 10
 np.set_printoptions(threshold=3600, linewidth=250, precision=2, suppress=True)
 
 
-def evaluate(gt_image, planes_ms, tcomp=0.70):
+def evaluate(gt_image, planes_ms, tcomp=0.80):
     # Note when I use the word class/label it means a unique plane
     # This creates a flattened array of each pixels class
     gt_pixel_labels = gt_image[:, :, 3].flatten().astype(np.int)

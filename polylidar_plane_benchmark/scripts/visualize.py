@@ -12,13 +12,15 @@ from polylidar_plane_benchmark import (DEFAULT_PPB_FILE, DEFAULT_PPB_FILE_SECOND
                                        SYNPEB_DIR_TEST_GT, SYNPEB_DIR_TRAIN_GT, SYNPEB_DIR_TEST_ALL, SYNPEB_DIR_TRAIN_ALL)
 from polylidar_plane_benchmark.utility.o3d_util import create_open_3d_pcd, plot_meshes, get_arrow, create_open_3d_mesh, flatten, mark_invalid_planes
 from polylidar_plane_benchmark.utility.helper import (load_pcd_file, create_mesh_from_organized_point_cloud, convert_planes_to_classified_point_cloud,
-                                                      extract_all_dominant_plane_normals, create_meshes, load_pcd_and_meshes,
+                                                      extract_all_dominant_plane_normals, create_meshes, load_pcd_and_meshes, convert_polygons_to_classified_point_cloud,
                                                       extract_planes_and_polygons_from_mesh, create_open_3d_pcd, paint_planes)
 from polylidar_plane_benchmark.utility.evaluate import evaluate
 
 
 import click
 
+
+# Variance 1 - Laplacian Smoothing Loops 4
 
 @click.group()
 def visualize():
@@ -105,21 +107,50 @@ def planes(input_file, stride, loops, llambda):
     pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, mesh_timings = load_pcd_and_meshes(input_file, stride, loops, llambda)
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, fastga_timings = extract_all_dominant_plane_normals(
         tri_mesh)
-    all_planes, _,  _, polylidar_timings = extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks, filter_polygons=False)
+    all_planes, all_polygons,  _, polylidar_timings = extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks, filter_polygons=False)
 
     all_timings = dict(**mesh_timings, **fastga_timings, **polylidar_timings)
     all_planes_classified = convert_planes_to_classified_point_cloud(all_planes, tri_mesh, avg_peaks)
-
     # paint the planes
     tri_mesh_o3d_painted = paint_planes(all_planes_classified, tri_mesh_o3d)
+
+    # for evaluation we need the full point cloud, not downsampled
+    _, gt_image = load_pcd_file(input_file, stride=1)
+    all_planes_classified = convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, avg_peaks, gt_image, stride,)
+    results, auxiliary = evaluate(gt_image, all_planes_classified)
     # get results
-    results, auxiliary = evaluate(pc_image, all_planes_classified)
+    # results, auxiliary = evaluate(pc_image, all_planes_classified)
     
     # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg,gray=ms_label_under_seg
     invalid_plane_markers = mark_invalid_planes(pc_raw, auxiliary, all_planes_classified)
     # invalid_plane_markers = []
 
     plot_meshes([pcd_raw, tri_mesh_o3d_painted, *invalid_plane_markers])
+
+
+@visualize.command()
+@click.option('-v', '--variance', type=click.Choice(['0', '1', '2', '3', '4']), default='1')
+@click.option('-d', '--data', default="train")
+@click.option('-s', '--stride', type=int, default=2)
+@click.option('-l', '--loops', type=int, default=10)
+@click.option('--llambda', type=float, default=1.0)
+@click.pass_context
+def planes_all(ctx, variance, data, stride, loops, llambda):
+    """Visualize Polygon Extraction from training/testing/gt set"""
+    if int(variance) == 0:
+        base_dir = SYNPEB_DIR_TRAIN_GT if data == "train" else SYNPEB_DIR_TEST_GT
+    else:
+        base_dir = SYNPEB_DIR_TRAIN_ALL[int(
+            variance) - 1] if data == "train" else SYNPEB_DIR_TEST_ALL[int(variance) - 1]
+
+    all_fnames = SYNPEB_ALL_FNAMES
+    if int(variance) != 0:
+        all_fnames = all_fnames[0:10]
+
+    for fname in all_fnames:
+        fpath = str(base_dir / fname)
+        logger.info("File: %s; stride=%d, loops=%d", fpath, stride, loops)
+        ctx.invoke(planes, input_file=fpath, stride=stride, loops=loops, llambda=llambda)
 
 
 @visualize.command()

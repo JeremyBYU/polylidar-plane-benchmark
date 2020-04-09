@@ -28,6 +28,8 @@ import organizedpointfilters.cuda as opf_cuda
 from organizedpointfilters import Matrix3f, Matrix3fRef
 import colorcet as cc
 
+from polylidar_plane_benchmark.utility.geometry import convert_to_shapely_geometry_in_image_space,rasterize_polygon, extract_image_coordinates
+
 # Set the random seeds for determinism
 random.seed(0)
 np.random.seed(0)
@@ -69,7 +71,7 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
                                           polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=200,
-                                                                z_thresh=0.02, norm_thresh=0.98, norm_thresh_min=0.98, min_hole_vertices=6, task_threads=4),
+                                                                z_thresh=0.02, norm_thresh=0.98, norm_thresh_min=0.98, min_hole_vertices=50, task_threads=4),
                                           filter_polygons=True):
 
     pl = Polylidar3D(**polylidar_kwargs)
@@ -118,6 +120,48 @@ def convert_planes_to_classified_point_cloud(all_planes, tri_mesh, all_normals, 
                                     points=points, class_id=plane_counter, normal=normal)
             all_classified_planes.append(classified_plane)
             plane_counter += 1
+    logger.info("A total of %d planes are captured", len(all_classified_planes))
+    return all_classified_planes
+
+
+def convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, all_normals, gt_image=None, stride=2, filter_kwargs=dict()):
+    logger.info("Total number of normals identified: %d", len(all_polygons))
+    all_classified_planes = []
+    class_index_counter = 1 # start class indices at 1
+
+    # The ground truth ORIGINAL image size
+    window_size_out = gt_image.shape[0:2]
+    # Our downsampled window size used
+    window_size_in = (np.array(window_size_out) / stride).astype(np.int)
+    # used to hold rasterization of polygons
+    image_out = np.zeros(window_size_out, dtype=np.uint8)
+
+
+    total_points = gt_image.shape[0] * gt_image.shape[1]
+    # A flattened array of the point indices
+    vertices = np.ascontiguousarray(gt_image[:, :, :3].reshape((total_points, 3)))
+    gt_class = gt_image[:, :, 3].astype(np.uint8)
+
+    for i, normal_polygons in enumerate(all_polygons):
+        logger.debug("Number of Polygons for normal: %d", len(normal_polygons))
+        normal = all_normals[i, :]
+        for polygon in normal_polygons:
+            polygon_shapely = convert_to_shapely_geometry_in_image_space(polygon, window_size_in, stride)
+            polygon_shapely = polygon_shapely.buffer(2.0)
+            polygon_shapely.simplify(1.0)
+            rasterize_polygon(polygon_shapely, class_index_counter, image_out)
+            point_indices = extract_image_coordinates(image_out, class_index_counter)
+            points = np.ascontiguousarray(vertices[point_indices, :])
+            plane_triangles = None
+            normal = np.copy(normal)
+            # f, (ax1, ax2) = plt.subplots(1,2)
+            # ax1.imshow(image_out)
+            # ax2.imshow(gt_class)
+            # plt.show()
+            classified_plane = dict(triangles=None, point_indices=point_indices,
+                                    points=points, class_id=class_index_counter, normal=normal)
+            all_classified_planes.append(classified_plane)
+            class_index_counter += 1
     logger.info("A total of %d planes are captured", len(all_classified_planes))
     return all_classified_planes
 

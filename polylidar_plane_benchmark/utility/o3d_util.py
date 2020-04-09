@@ -157,6 +157,7 @@ def assign_vertex_colors(mesh, normal_colors, mask=None):
         p_idx = triangles[i, :]
         vertex_colors[p_idx] = color
 
+    split_mesh.compute_vertex_normals()
     return split_mesh
 
 
@@ -191,6 +192,9 @@ def assign_some_vertex_colors(mesh, triangle_indices, triangle_colors, mask=None
             color = triangle_colors[i, :]
             p_idx = triangles[t_idx, :]
             vertex_colors[p_idx] = color
+
+    split_mesh.compute_triangle_normals()
+    split_mesh.compute_vertex_normals()
 
     return split_mesh
 
