@@ -162,8 +162,13 @@ def evaluate(gt_image, planes_ms, tcomp=0.80):
     n_under_seg = np.asscalar(np.sum(under_seg_final))
     n_missed_seg = np.asscalar(np.sum(missed_seg))
     n_noise_seg = np.asscalar(np.sum(noise_seg))
-    logger.info("n_corr: %d; n_over_seg: %d; n_under_seg: %d; n_missed_seg: %d; n_noise_seg: %d",
-                n_corr_seg, n_over_seg, n_under_seg, n_missed_seg, n_noise_seg)
+
+    f_corr_seg = n_corr_seg / n_gt
+    total_points_correct_gt = np.sum(correct_seg_final, axis=1) * point_count_gt 
+    f_weighted_corr_seg = np.sum(total_points_correct_gt) / np.sum(point_count_gt)
+
+    logger.info("f_corr: %.2f; f_weighted_corr: %.2f; n_corr: %d; n_over_seg: %d; n_under_seg: %d; n_missed_seg: %d; n_noise_seg: %d",
+                f_corr_seg, f_weighted_corr_seg, n_corr_seg, n_over_seg, n_under_seg, n_missed_seg, n_noise_seg)
 
     # import ipdb; ipdb.set_trace()
     test_gt = np.column_stack([np.sum(correct_seg_final, axis=1), over_seg_final, under_seg_cause, missed_seg])
@@ -175,13 +180,14 @@ def evaluate(gt_image, planes_ms, tcomp=0.80):
     if not np.array_equal(np.sum(test_ms, 0), np.ones((n_ms, ), dtype=np.int)):
         logger.error('Measurement classification is not consistent!')
 
+
     # gt and ms plane ids for each category for debugging purposes
     gt_labels_missed = gt_unique_labels_filtered[np.ma.make_mask(missed_seg)]
     ms_labels_noise = np.where(np.ma.make_mask(noise_seg))[0]
     gt_labels_over_seg = gt_unique_labels_filtered[np.ma.make_mask(over_seg_final)]
     ms_labels_under_seg = np.where(np.ma.make_mask(under_seg_final))[0]
 
-    results = dict(n_ms_all=n_ms_all, n_corr_seg=n_corr_seg, n_over_seg=n_over_seg, n_under_seg=n_under_seg, n_missed_seg=n_missed_seg, n_noise_seg=n_noise_seg)
+    results = dict(n_gt=n_gt, n_ms_all=n_ms_all,f_weighted_corr_seg=f_weighted_corr_seg, f_corr_seg=f_corr_seg, n_corr_seg=n_corr_seg, n_over_seg=n_over_seg, n_under_seg=n_under_seg, n_missed_seg=n_missed_seg, n_noise_seg=n_noise_seg)
     auxiliary = dict(gt_labels_missed=gt_labels_missed, ms_labels_noise=ms_labels_noise, gt_labels_over_seg=gt_labels_over_seg, ms_labels_under_seg=ms_labels_under_seg)
 
     return results, auxiliary

@@ -147,7 +147,7 @@ def convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, all_norma
         normal = all_normals[i, :]
         for polygon in normal_polygons:
             polygon_shapely = convert_to_shapely_geometry_in_image_space(polygon, window_size_in, stride)
-            polygon_shapely = polygon_shapely.buffer(2.0)
+            # polygon_shapely = polygon_shapely.buffer(1.0)
             polygon_shapely.simplify(1.0)
             rasterize_polygon(polygon_shapely, class_index_counter, image_out)
             point_indices = extract_image_coordinates(image_out, class_index_counter)
