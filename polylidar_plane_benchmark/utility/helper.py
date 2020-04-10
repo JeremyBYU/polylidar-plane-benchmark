@@ -297,14 +297,15 @@ def laplacian_opc(opc, loops=5, _lambda=0.5, kernel_size=3):
     a_ref = Matrix3fRef(opc_float)
 
     t1 = time.perf_counter()
-    b_cp = opf.kernel.laplacian_K3(a_ref, _lambda=_lambda, iterations=loops)
+    b_cp = opf.kernel.laplacian_K3(a_ref, _lambda=_lambda, iterations=loops, max_dist=0.25)
     t2 = time.perf_counter()
     logger.info("OPC Mesh Smoothing Took (ms): %.2f", (t2 - t1) * 1000)
+    time_elapsed = (t2 - t1) * 1000
 
     opc_float_out = np.asarray(b_cp)
     opc_out = opc_float_out.astype(np.float64)
 
-    return opc_out
+    return opc_out, time_elapsed
 
 
 def laplacian_opc_cuda(opc, loops=5, _lambda=0.5, **kwargs):
@@ -337,7 +338,7 @@ def create_meshes_cuda(opc, loops=5, _lambda=0.5):
     Returns:
         [tuple(mesh, o3d_mesh)] -- polylidar mesh and o3d mesh reperesentation
     """
-    smooth_opc, time_elapsed_laplacian = laplacian_opc_cuda(opc, loops=loops, _lambda=_lambda)
+    smooth_opc, time_elapsed_laplacian = laplacian_opc(opc, loops=loops, _lambda=_lambda)
     tri_mesh, tri_mesh_o3d, time_elapsed_mesh = create_mesh_from_organized_point_cloud_with_o3d(smooth_opc)
 
     timings = dict(laplacian=time_elapsed_laplacian, mesh=time_elapsed_mesh)

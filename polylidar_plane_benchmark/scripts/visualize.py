@@ -114,12 +114,13 @@ def planes(input_file, stride, loops, llambda):
     # paint the planes
     tri_mesh_o3d_painted = paint_planes(all_planes_classified, tri_mesh_o3d)
 
+    # can be evaluated by polygons (using downsampled image) or just the planes
     # for evaluation we need the full point cloud, not downsampled
     _, gt_image = load_pcd_file(input_file, stride=1)
-    all_planes_classified = convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, avg_peaks, gt_image, stride,)
-    results, auxiliary = evaluate(gt_image, all_planes_classified)
+    # all_planes_classified = convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, avg_peaks, gt_image, stride,)
+    # results, auxiliary = evaluate(gt_image, all_planes_classified)
     # get results
-    # results, auxiliary = evaluate(pc_image, all_planes_classified)
+    results, auxiliary = evaluate(pc_image, all_planes_classified)
     
     # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg,gray=ms_label_under_seg
     invalid_plane_markers = mark_invalid_planes(pc_raw, auxiliary, all_planes_classified)
