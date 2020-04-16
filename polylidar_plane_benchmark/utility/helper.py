@@ -17,6 +17,7 @@ from polylidar.polylidarutil.plane_filtering import filter_planes_and_holes
 
 from polylidar_plane_benchmark.utility.o3d_util import (
     create_open_3d_pcd, plot_meshes, get_arrow, create_open_3d_mesh, open_3d_mesh_to_tri_mesh, assign_vertex_colors, get_colors, assign_some_vertex_colors)
+from polylidar_plane_benchmark.utility.helper_mesh import create_meshes_cuda_with_o3d
 from polylidar_plane_benchmark import logger
 
 from fastga import GaussianAccumulatorS2, MatX3d, IcoCharts
@@ -47,7 +48,7 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5):
     pcd_raw = create_open_3d_pcd(pc_raw[:, :3], pc_raw[:, 3], cmap=cmap)
 
     # tri_mesh, tri_mesh_o3d = create_meshes(pc_points, stride=stride, loops=loops)
-    tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda(pc_image, loops=loops, _lambda=_lambda)
+    tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda_with_o3d(pc_image, loops=loops, _lambda=_lambda)
 
     logger.info("Visualizing Point Cloud - Size: %dX%d ; # Points: %d; # Triangles: %d",
                 pc_image.shape[0], pc_image.shape[1], pc_raw.shape[0], np.asarray(tri_mesh.triangles).shape[0])
@@ -249,107 +250,183 @@ def extract_all_dominant_plane_normals(tri_mesh, level=5, **kwargs):
     return avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, timings
 
 
-def create_meshes(pc_points, stride=2, loops=5, _lambda=0.5,):
-    tri_mesh = create_mesh_from_organized_point_cloud(pc_points, stride=stride)
+# def create_meshes(pc_points, stride=2, loops=5, _lambda=0.5, **kwargs):
+#     tri_mesh, time_elapsed = create_mesh_from_organized_point_cloud(pc_points, stride=stride)
+#     tri_mesh_o3d = create_open_3d_mesh(np.asarray(tri_mesh.triangles), pc_points)
 
-    tri_mesh_o3d = create_open_3d_mesh(np.asarray(tri_mesh.triangles), pc_points)
-    # Perform Smoothing
-    filter_scope = o3d.geometry.FilterScope(0)
-    kwargs = dict(filter_scope=filter_scope)
-    kwargs['lambda'] = _lambda
-    t1 = time.perf_counter()
-    if loops > 0:
-        tri_mesh_o3d = tri_mesh_o3d.filter_smooth_laplacian(loops)
-    t2 = time.perf_counter()
-    tri_mesh_o3d = tri_mesh_o3d.compute_triangle_normals()
+#     # Perform Smoothing
+#     if loops > 1:
+#         filter_scope = o3d.geometry.FilterScope(0)
+#         kwargs = dict(filter_scope=filter_scope)
+#         kwargs['lambda'] = _lambda
+#         t1 = time.perf_counter()
+#         tri_mesh_o3d = tri_mesh_o3d.filter_smooth_laplacian(loops, **kwargs)
+#         t2 = time.perf_counter()
+#         logger.info("Mesh Smoothing Took (ms): %.2f", (t2 - t1) * 1000)
 
-    tri_mesh = open_3d_mesh_to_tri_mesh(tri_mesh_o3d)
+#     tri_mesh_o3d = tri_mesh_o3d.compute_triangle_normals()
+#     tri_mesh = open_3d_mesh_to_tri_mesh(tri_mesh_o3d)
 
-    logger.info("Mesh Smoothing Took (ms): %.2f", (t2 - t1) * 1000)
+#     return tri_mesh, tri_mesh_o3d
 
-    return tri_mesh, tri_mesh_o3d
+# def create_mesh_from_organized_point_cloud_with_o3d(pcd, rows=500, cols=500, stride=2):
+#     """Create Mesh from organized point cloud
+#     If an MXNX3 Point Cloud is passed, rows and cols is ignored (we know the row/col from shape)
+#     If an KX3 Point Cloud is passed, you must pass the row, cols, and stride that correspond to the point cloud
 
+#     Arguments:
+#         pcd {ndarray} -- Numpy array. Either a K X 3 (flattened) or MXNX3
 
-def create_mesh_from_organized_point_cloud_with_o3d(pcd: np.ndarray, rows=500, cols=500, stride=2):
-    pcd_ = pcd
-    if pcd.ndim == 3:
-        rows = pcd.shape[0]
-        cols = pcd.shape[1]
-        stride = 1
-        pcd_ = pcd.reshape((rows * cols, 3))
+#     Keyword Arguments:
+#         rows {int} -- Number of rows (default: {500})
+#         cols {int} -- Number of columns (default: {500})
+#         stride {int} -- Stride used in creating point cloud (default: {2})
 
-    pcd_mat = MatrixDouble(pcd_, copy=True)
-    pcd_mat_np = np.asarray(pcd_mat)
-    t1 = time.perf_counter()
-    tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride)
-    t2 = time.perf_counter()
+#     Returns:
+#         tuple -- Polylidar Tri Mesh and O3D mesh
+#     """
+#     pcd_ = pcd
+#     if pcd.ndim == 3:
+#         rows = pcd.shape[0]
+#         cols = pcd.shape[1]
+#         stride = 1
+#         pcd_ = pcd.reshape((rows * cols, 3))
 
-    time_elapsed = (t2 - t1) * 1000
+#     # MUST HAVE COPY!!!!!!, numpy array may/will go out of scope
+#     pcd_mat = MatrixDouble(pcd_, copy=True)
+#     t1 = time.perf_counter()
+#     tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride)
+#     t2 = time.perf_counter()
 
-    tri_mesh_o3d = create_open_3d_mesh(np.asarray(tri_mesh.triangles), pcd_)
+#     time_elapsed = (t2 - t1) * 1000
 
-    return tri_mesh, tri_mesh_o3d, time_elapsed
+#     tri_mesh_o3d = create_open_3d_mesh(np.asarray(tri_mesh.triangles), pcd_)
 
+#     return tri_mesh, tri_mesh_o3d, time_elapsed
 
-def laplacian_opc(opc, loops=5, _lambda=0.5, kernel_size=3):
-    opc_float = (np.ascontiguousarray(opc[:, :, :3])).astype(np.float32)
+# def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2):
+#     """Create Mesh from organized point cloud
+#     If an MXNX3 Point Cloud is passed, rows and cols is ignored (we know the row/col from shape)
+#     If an KX3 Point Cloud is passed, you must pass the row, cols, and stride that correspond to the point cloud
 
-    a_ref = Matrix3fRef(opc_float)
+#     Arguments:
+#         pcd {ndarray} -- Numpy array. Either a K X 3 (flattened) or MXNX3
 
-    t1 = time.perf_counter()
-    b_cp = opf.kernel.laplacian_K3(a_ref, _lambda=_lambda, iterations=loops, max_dist=0.25)
-    t2 = time.perf_counter()
-    logger.info("OPC Mesh Smoothing Took (ms): %.2f", (t2 - t1) * 1000)
-    time_elapsed = (t2 - t1) * 1000
+#     Keyword Arguments:
+#         rows {int} -- Number of rows (default: {500})
+#         cols {int} -- Number of columns (default: {500})
+#         stride {int} -- Stride used in creating point cloud (default: {2})
 
-    opc_float_out = np.asarray(b_cp)
-    opc_out = opc_float_out.astype(np.float64)
+#     Returns:
+#         tuple -- Polylidar Tri Mesh and O3D mesh
+#     """
+#     pcd_ = pcd
+#     if pcd.ndim == 3:
+#         rows = pcd.shape[0]
+#         cols = pcd.shape[1]
+#         stride = 1
+#         pcd_ = pcd.reshape((rows * cols, 3))
 
-    return opc_out, time_elapsed
-
-
-def laplacian_opc_cuda(opc, loops=5, _lambda=0.5, **kwargs):
-
-    opc_float = (np.ascontiguousarray(opc[:, :, :3])).astype(np.float32)
-
-    t1 = time.perf_counter()
-    opc_float_out = opf_cuda.kernel.laplacian_K3_cuda(opc_float, loops=loops, _lambda=_lambda, **kwargs)
-    t2 = time.perf_counter()
-    time_elapsed = (t2 - t1) * 1000
-
-    logger.info("OPC CUDA Laplacian Mesh Smoothing Took (ms): %.2f", time_elapsed)
-
-    # only for visualization purposes here
-    opc_out = opc_float_out.astype(np.float64)
-
-    return opc_out, time_elapsed
-
-
-def create_meshes_cuda(opc, loops=5, _lambda=0.5):
-    """Creates a mesh from a noisy organized point cloud
-
-    Arguments:
-        opc {ndarray} -- Must be MXNX3
-
-    Keyword Arguments:
-        loops {int} -- How many loop iterations (default: {5})
-        _lambda {float} -- weighted iteration movement (default: {0.5})
-
-    Returns:
-        [tuple(mesh, o3d_mesh)] -- polylidar mesh and o3d mesh reperesentation
-    """
-    smooth_opc, time_elapsed_laplacian = laplacian_opc(opc, loops=loops, _lambda=_lambda)
-    tri_mesh, tri_mesh_o3d, time_elapsed_mesh = create_mesh_from_organized_point_cloud_with_o3d(smooth_opc)
-
-    timings = dict(laplacian=time_elapsed_laplacian, mesh=time_elapsed_mesh)
-    return tri_mesh, tri_mesh_o3d, timings
+#     pcd_mat = MatrixDouble(pcd_, copy=True)
+#     t1 = time.perf_counter()
+#     tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride)
+#     t2 = time.perf_counter()
+#     time_elapsed = (t2 - t1) * 1000
+#     return tri_mesh, time_elapsed
 
 
-def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2):
-    pcd_mat = MatrixDouble(pcd)
-    pcd_mat_np = np.asarray(pcd_mat)
-    tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride)
-    return tri_mesh
+# def laplacian_opc(opc, loops=5, _lambda=0.5, kernel_size=3, **kwargs):
+#     """Performs Laplacian Smoothing on an organized point cloud
+
+#     Arguments:
+#         opc {ndarray} -- Organized Point Cloud MXNX3, Assumed F64
+
+#     Keyword Arguments:
+#         loops {int} -- How many iterations of smoothing (default: {5})
+#         _lambda {float} -- Weight factor for update (default: {0.5})
+#         kernel_size {int} -- Kernel Size (How many neighbors to intregrate) (default: {3})
+
+#     Returns:
+#         ndarray -- Smoothed Point Cloud, MXNX3, F64
+#     """
+#     opc_float = (np.ascontiguousarray(opc[:, :, :3])).astype(np.float32)
+
+#     a_ref = Matrix3fRef(opc_float)
+
+#     t1 = time.perf_counter()
+#     if kernel_size == 3:
+#         b_cp = opf.filter.laplacian_K3(a_ref, _lambda=_lambda, iterations=loops, **kwargs)
+#     else:
+#         b_cp = opf.filter.laplacian_K5(a_ref, _lambda=_lambda, iterations=loops, **kwargs)
+#     t2 = time.perf_counter()
+#     logger.info("OPC Mesh Smoothing Took (ms): %.2f", (t2 - t1) * 1000)
+
+#     opc_float_out = np.asarray(b_cp)
+#     opc_out = opc_float_out.astype(np.float64)
+
+#     time_elapsed = (t2 - t1) * 1000
+
+#     return opc_out, time_elapsed
+
+
+# def laplacian_opc_cuda(opc, loops=5, _lambda=0.5, kernel_size=3, **kwargs):
+#     """Performs Laplacian Smoothing on an organized point cloud
+
+#     Arguments:
+#         opc {ndarray} -- Organized Point Cloud MXNX3, Assumed F64
+
+#     Keyword Arguments:
+#         loops {int} -- How many iterations of smoothing (default: {5})
+#         _lambda {float} -- Weight factor for update (default: {0.5})
+#         kernel_size {int} -- Kernel Size (How many neighbors to intregrate) (default: {3})
+
+#     Returns:
+#         ndarray -- Smoothed Point Cloud, MXNX3
+#     """
+
+#     opc_float = (np.ascontiguousarray(opc[:, :, :3])).astype(np.float32)
+
+#     t1 = time.perf_counter()
+#     if kernel_size == 3:
+#         opc_float_out = opf_cuda.kernel.laplacian_K3_cuda(opc_float, loops=loops, _lambda=_lambda, **kwargs)
+#     else:
+#         opc_float_out = opf_cuda.kernel.laplacian_K5_cuda(opc_float, loops=loops, _lambda=_lambda, **kwargs)
+#     t2 = time.perf_counter()
+
+#     logger.info("OPC CUDA Laplacian Mesh Smoothing Took (ms): %.2f", (t2 - t1) * 1000)
+
+#     # only for visualization purposes here
+#     opc_out = opc_float_out.astype(np.float64)
+#     time_elapsed = (t2 - t1) * 1000
+
+#     return opc_out, time_elapsed
+
+
+# def create_meshes_cuda(opc, loops=5, _lambda=0.5):
+#     """Creates a mesh from a noisy organized point cloud
+
+#     Arguments:
+#         opc {ndarray} -- Must be MXNX3
+
+#     Keyword Arguments:
+#         loops {int} -- How many loop iterations (default: {5})
+#         _lambda {float} -- weighted iteration movement (default: {0.5})
+
+#     Returns:
+#         [tuple(mesh, o3d_mesh)] -- polylidar mesh and o3d mesh reperesentation
+#     """
+#     smooth_opc, time_elapsed_laplacian = laplacian_opc(opc, loops=loops, _lambda=_lambda)
+#     tri_mesh, tri_mesh_o3d, time_elapsed_mesh = create_mesh_from_organized_point_cloud_with_o3d(smooth_opc)
+
+#     timings = dict(laplacian=time_elapsed_laplacian, mesh=time_elapsed_mesh)
+#     return tri_mesh, tri_mesh_o3d, timings
+
+
+# def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2):
+#     pcd_mat = MatrixDouble(pcd)
+#     pcd_mat_np = np.asarray(pcd_mat)
+#     tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride)
+#     return tri_mesh
 
 
 def load_pcd_file(fpath, stride=2):

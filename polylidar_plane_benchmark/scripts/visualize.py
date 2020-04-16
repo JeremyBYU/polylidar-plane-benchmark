@@ -11,8 +11,8 @@ import colorcet as cc
 from polylidar_plane_benchmark import (DEFAULT_PPB_FILE, DEFAULT_PPB_FILE_SECONDARY, logger, SYNPEB_ALL_FNAMES, SYNPEB_DIR, SYNPEB_MESHES_DIR,
                                        SYNPEB_DIR_TEST_GT, SYNPEB_DIR_TRAIN_GT, SYNPEB_DIR_TEST_ALL, SYNPEB_DIR_TRAIN_ALL)
 from polylidar_plane_benchmark.utility.o3d_util import create_open_3d_pcd, plot_meshes, get_arrow, create_open_3d_mesh, flatten, mark_invalid_planes
-from polylidar_plane_benchmark.utility.helper import (load_pcd_file, create_mesh_from_organized_point_cloud, convert_planes_to_classified_point_cloud,
-                                                      extract_all_dominant_plane_normals, create_meshes, load_pcd_and_meshes, convert_polygons_to_classified_point_cloud,
+from polylidar_plane_benchmark.utility.helper import (load_pcd_file, convert_planes_to_classified_point_cloud,
+                                                      extract_all_dominant_plane_normals, load_pcd_and_meshes, convert_polygons_to_classified_point_cloud,
                                                       extract_planes_and_polygons_from_mesh, create_open_3d_pcd, paint_planes)
 from polylidar_plane_benchmark.utility.evaluate import evaluate
 

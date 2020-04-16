@@ -70,11 +70,12 @@ def create_open_3d_pcd(points, clusters=None, cmap=plt.cm.tab20):
     return pcd
 
 
-def create_open_3d_mesh(tri_mesh):
+def create_open_3d_mesh_from_tri_mesh(tri_mesh):
     """Create an Open3D Mesh given a Polylidar TriMesh"""
     triangles = np.asarray(tri_mesh.triangles)
     vertices = np.asarray(tri_mesh.vertices)
-    create_open_3d_mesh(triangles, vertices)
+    triangle_normals = np.asarray(tri_mesh.triangle_normals)
+    return create_open_3d_mesh(triangles, vertices, triangle_normals)
 
 
 def create_open_3d_mesh(triangles, points, triangle_normals=None, color=COLOR_PALETTE[0], counter_clock_wise=True):
@@ -106,6 +107,8 @@ def create_open_3d_mesh(triangles, points, triangle_normals=None, color=COLOR_PA
     elif triangle_normals.ndim == 1:
         triangle_normals_ = triangle_normals.reshape((int(triangle_normals.shape[0] / 3), 3))
         mesh_2d.triangle_normals = o3d.utility.Vector3dVector(triangle_normals_)
+    else:
+        mesh_2d.triangle_normals = o3d.utility.Vector3dVector(triangle_normals)
     mesh_2d.paint_uniform_color(color)
     return mesh_2d
 
