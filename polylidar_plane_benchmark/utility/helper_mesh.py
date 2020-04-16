@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 
 from polylidar_plane_benchmark import logger
 from polylidar_plane_benchmark.utility.o3d_util import create_open_3d_mesh_from_tri_mesh
@@ -344,6 +345,20 @@ def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2):
 
 #     return tri_mesh, tri_mesh_o3d, time_elapsed
 
+def plot_triangle_normals(normals:np.ndarray, normals2:np.ndarray):
+    f, (ax1, ax2) = plt.subplots(1,2) 
+    colors = ((normals * 0.5 + 0.5) * 255).astype(np.uint8)
+    im = colors.reshape((249, 249, 2, 3))
+    im = im[:, :, 1, :]
+
+    colors2 = ((normals2 * 0.5 + 0.5) * 255).astype(np.uint8)
+    im2= colors2.reshape((249, 249, 2, 3))
+    im2 = im2[:, :, 1, :]
+
+    ax1.imshow(im, origin='upper')
+    ax2.imshow(im2, origin='upper')
+    plt.show()
+
 def create_meshes_cuda(opc, **kwargs):
     """Creates a mesh from a noisy organized point cloud
 
@@ -360,6 +375,7 @@ def create_meshes_cuda(opc, **kwargs):
     smooth_opc, opc_normals, timings = laplacian_then_bilateral_opc_cuda(opc, **kwargs)
     tri_mesh, time_elapsed_mesh = create_mesh_from_organized_point_cloud(smooth_opc)
     opc_normals_cp = MatrixDouble(opc_normals, copy=True) # copy here
+    # plot_triangle_normals(np.asarray(tri_mesh.triangle_normals), opc_normals)
     tri_mesh.set_triangle_normals(opc_normals_cp) # copy again here....sad
     timings = dict(**timings, mesh=time_elapsed_mesh)
     return tri_mesh, timings
@@ -379,8 +395,6 @@ def create_meshes_cuda_with_o3d(opc, **kwargs):
     """
     tri_mesh, timings = create_meshes_cuda(opc, **kwargs)
     tri_mesh_o3d = create_open_3d_mesh_from_tri_mesh(tri_mesh)
-
-    # import ipdb; ipdb.set_trace()
 
     return tri_mesh, tri_mesh_o3d, timings
     

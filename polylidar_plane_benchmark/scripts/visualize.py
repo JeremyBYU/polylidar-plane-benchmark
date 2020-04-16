@@ -33,7 +33,8 @@ def visualize():
 @click.option('-s', '--stride', type=int, default=2)
 @click.option('-l', '--loops', type=int, default=20)
 @click.option('--llambda', type=float, default=1.0)
-def pcd(input_file: str, stride, loops, llambda):
+@click.option('-lb', '--loops-bilateral', type=int, default=0)
+def pcd(input_file: str, stride, loops, llambda, loops_bilateral):
     """Visualize PCD File"""
     pc_raw, pc_image = load_pcd_file(input_file, stride)
 
@@ -51,9 +52,10 @@ def pcd(input_file: str, stride, loops, llambda):
 @click.option('-s', '--stride', type=int, default=2)
 @click.option('-l', '--loops', type=int, default=20)
 @click.option('--llambda', type=float, default=1.0)
-def mesh(input_file: str, stride, loops, llambda):
+@click.option('-lb', '--loops-bilateral', type=int, default=0)
+def mesh(input_file: str, stride, loops, llambda, loops_bilateral):
     """Visualize Mesh from PCD File"""
-    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(input_file, stride, loops, llambda)
+    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(input_file, stride, loops, llambda, loops_bilateral)
 
     # Write Smoothed Mesh to File, debugging purposes
     output_file = str(input_file).replace(str(SYNPEB_DIR), str(SYNPEB_MESHES_DIR))
@@ -70,9 +72,11 @@ def mesh(input_file: str, stride, loops, llambda):
 @click.option('-s', '--stride', type=int, default=2)
 @click.option('-l', '--loops', type=int, default=20)
 @click.option('--llambda', type=float, default=1.0)
-def ga(input_file, stride, loops, llambda):
+@click.option('-lb', '--loops-bilateral', type=int, default=0)
+def ga(input_file, stride, loops, llambda, loops_bilateral):
     """Visualize Gaussian Accumulator File"""
-    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(input_file, stride, loops, llambda)
+    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(input_file, stride, loops, llambda, loops_bilateral)
+
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, _ = extract_all_dominant_plane_normals(tri_mesh)
 
     # arrow = get_arrow(origin=[0,0,0], end=[3, 0, 0], cylinder_radius=0.01)
@@ -84,9 +88,10 @@ def ga(input_file, stride, loops, llambda):
 @click.option('-s', '--stride', type=int, default=2)
 @click.option('-l', '--loops', type=int, default=20)
 @click.option('--llambda', type=float, default=1.0)
-def polygons(input_file, stride, loops, llambda):
+@click.option('-lb', '--loops-bilateral', type=int, default=0)
+def polygons(input_file, stride, loops, llambda, loops_bilateral):
     """Visualize Polygon Extraction File"""
-    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(input_file, stride, loops, llambda)
+    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(input_file, stride, loops, llambda, loops_bilateral)
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, _ = extract_all_dominant_plane_normals(tri_mesh)
     _, _, all_poly_lines, _ = extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks)
     mesh_3d_polylidar = []
@@ -96,23 +101,41 @@ def polygons(input_file, stride, loops, llambda):
 
 
 
+def plot_triangle_normals(normals:np.ndarray):
+    colors = ((normals * 0.5 + 0.5) * 255).astype(np.uint8)
+    im = colors.reshape((249, 249, 2, 3))
+    im = im[:, :, 1, :]
+    plt.imshow(im, origin='upper')
+    plt.show()
+
 
 @visualize.command()
 @click.option('-i', '--input-file', type=click.Path(exists=True), default=DEFAULT_PPB_FILE)
 @click.option('-s', '--stride', type=int, default=2)
 @click.option('-l', '--loops', type=int, default=20)
 @click.option('--llambda', type=float, default=1.0)
-def planes(input_file, stride, loops, llambda):
+@click.option('-lb', '--loops-bilateral', type=int, default=0)
+def planes(input_file, stride, loops, llambda, loops_bilateral):
     """Visualize Polygon Extraction File"""
-    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, mesh_timings = load_pcd_and_meshes(input_file, stride, loops, llambda)
+    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, mesh_timings = load_pcd_and_meshes(input_file, stride, loops, llambda, loops_bilateral)
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, fastga_timings = extract_all_dominant_plane_normals(
         tri_mesh)
+
+
+    # print(avg_peaks)
+    # print((avg_peaks * 0.5 + 0.5) * 255)
+
+    # tri_mesh_normals = np.asarray(tri_mesh.triangle_normals)
+    # plot_triangle_normals(tri_mesh_normals)
+
     all_planes, all_polygons,  _, polylidar_timings = extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks, filter_polygons=False)
 
     all_timings = dict(**mesh_timings, **fastga_timings, **polylidar_timings)
     all_planes_classified = convert_planes_to_classified_point_cloud(all_planes, tri_mesh, avg_peaks)
     # paint the planes
+    # all_planes_classified.append(dict(triangles=np.array([51032])))
     tri_mesh_o3d_painted = paint_planes(all_planes_classified, tri_mesh_o3d)
+    # del all_planes_classified[-1]
 
     # can be evaluated by polygons (using downsampled image) or just the planes
     # for evaluation we need the full point cloud, not downsampled
@@ -124,8 +147,9 @@ def planes(input_file, stride, loops, llambda):
     
     # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg,gray=ms_label_under_seg
     invalid_plane_markers = mark_invalid_planes(pc_raw, auxiliary, all_planes_classified)
-    # invalid_plane_markers = []
 
+    # invalid_plane_markers = []
+    # plot_meshes([tri_mesh_o3d_painted])
     plot_meshes([pcd_raw, tri_mesh_o3d_painted, *invalid_plane_markers])
 
 

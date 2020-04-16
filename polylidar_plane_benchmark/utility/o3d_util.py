@@ -110,6 +110,7 @@ def create_open_3d_mesh(triangles, points, triangle_normals=None, color=COLOR_PA
     else:
         mesh_2d.triangle_normals = o3d.utility.Vector3dVector(triangle_normals)
     mesh_2d.paint_uniform_color(color)
+    mesh_2d.compute_vertex_normals()
     return mesh_2d
 
 
@@ -134,6 +135,7 @@ def split_triangles(mesh):
     mesh_return = deepcopy(mesh)
     mesh_return.triangles = o3d.utility.Vector3iVector(triangles_3)
     mesh_return.vertices = o3d.utility.Vector3dVector(vertices_3)
+    mesh_return.triangle_normals = mesh.triangle_normals
     mesh_return.paint_uniform_color([0.5, 0.5, 0.5])
     return mesh_return
 
@@ -195,8 +197,8 @@ def assign_some_vertex_colors(mesh, triangle_indices, triangle_colors, mask=None
             color = triangle_colors[i, :]
             p_idx = triangles[t_idx, :]
             vertex_colors[p_idx] = color
-
-    split_mesh.compute_triangle_normals()
+    if not split_mesh.has_triangle_normals():
+        split_mesh.compute_triangle_normals()
     split_mesh.compute_vertex_normals()
 
     return split_mesh
@@ -217,7 +219,7 @@ def translate_meshes(mesh_list, current_translation=0.0, axis=0):
     return translate_meshes
 
 
-def plot_meshes(*meshes, shift=True):
+def plot_meshes(*meshes, shift=True, with_axis=True):
     axis = o3d.geometry.TriangleMesh.create_coordinate_frame()
     axis.translate([-2.0, 0, 0])
     translate_meshes = []
@@ -240,8 +242,10 @@ def plot_meshes(*meshes, shift=True):
                     current_x += x_extent + 0.5
     else:
         translate_meshes = meshes
-
-    o3d.visualization.draw_geometries([axis, *translate_meshes])
+    if not with_axis:
+        o3d.visualization.draw_geometries([*translate_meshes])
+    else:
+        o3d.visualization.draw_geometries([axis, *translate_meshes])
 
 
 def vector_magnitude(vec):
