@@ -114,10 +114,11 @@ def plot_triangle_normals(normals:np.ndarray):
 @click.option('-s', '--stride', type=int, default=2)
 @click.option('-l', '--loops', type=int, default=20)
 @click.option('--llambda', type=float, default=1.0)
+@click.option('-ks','--kernel-size', type=int, default=3)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
-def planes(input_file, stride, loops, llambda, loops_bilateral):
+def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
     """Visualize Polygon Extraction File"""
-    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, mesh_timings = load_pcd_and_meshes(input_file, stride, loops, llambda, loops_bilateral)
+    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, mesh_timings = load_pcd_and_meshes(input_file, stride, loops, llambda, kernel_size, loops_bilateral)
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, fastga_timings = extract_all_dominant_plane_normals(
         tri_mesh)
 
@@ -159,8 +160,10 @@ def planes(input_file, stride, loops, llambda, loops_bilateral):
 @click.option('-s', '--stride', type=int, default=2)
 @click.option('-l', '--loops', type=int, default=10)
 @click.option('--llambda', type=float, default=1.0)
+@click.option('-ks','--kernel-size', type=int, default=3)
+@click.option('-lb', '--loops-bilateral', type=int, default=0)
 @click.pass_context
-def planes_all(ctx, variance, data, stride, loops, llambda):
+def planes_all(ctx, variance, data, stride, loops, llambda, kernel_size, loops_bilateral):
     """Visualize Polygon Extraction from training/testing/gt set"""
     if int(variance) == 0:
         base_dir = SYNPEB_DIR_TRAIN_GT if data == "train" else SYNPEB_DIR_TEST_GT
@@ -175,7 +178,7 @@ def planes_all(ctx, variance, data, stride, loops, llambda):
     for fname in all_fnames:
         fpath = str(base_dir / fname)
         logger.info("File: %s; stride=%d, loops=%d", fpath, stride, loops)
-        ctx.invoke(planes, input_file=fpath, stride=stride, loops=loops, llambda=llambda)
+        ctx.invoke(planes, input_file=fpath, stride=stride, loops=loops, llambda=llambda, kernel_size=kernel_size, loops_bilateral=loops_bilateral)
 
 
 @visualize.command()

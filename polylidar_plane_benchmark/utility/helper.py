@@ -36,7 +36,7 @@ random.seed(0)
 np.random.seed(0)
 
 
-def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilateral=0,  **kwargs):
+def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilateral=0,  kernel_size=3, **kwargs):
     """Load PCD and Meshes
     """
     pc_raw, pc_image = load_pcd_file(input_file, stride)
@@ -48,7 +48,7 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilate
     pcd_raw = create_open_3d_pcd(pc_raw[:, :3], pc_raw[:, 3], cmap=cmap)
 
     # tri_mesh, tri_mesh_o3d = create_meshes(pc_points, stride=stride, loops=loops)
-    tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda_with_o3d(pc_image, loops_laplacian=loops, _lambda=_lambda, loops_bilateral=loops_bilateral, sigma_angle=0.05, **kwargs)
+    tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda_with_o3d(pc_image, loops_laplacian=loops, _lambda=_lambda, kernel_size=kernel_size, loops_bilateral=loops_bilateral, sigma_angle=0.15, **kwargs)
 
     logger.info("Visualizing Point Cloud - Size: %dX%d ; # Points: %d; # Triangles: %d",
                 pc_image.shape[0], pc_image.shape[1], pc_raw.shape[0], np.asarray(tri_mesh.triangles).shape[0])
