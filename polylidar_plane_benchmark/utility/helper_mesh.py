@@ -218,7 +218,7 @@ def laplacian_then_bilateral_opc(opc, loops_laplacian=5, _lambda=0.5, kernel_siz
 
     return opc_out, opc_normals_out, timings
 
-def laplacian_then_bilateral_opc_cuda(opc, loops_laplacian=5, _lambda=0.5, kernel_size=3, loops_bilateral=0, sigma_length=0.1, sigma_angle=0.261, **kwargs):
+def laplacian_then_bilateral_opc_cuda(opc, loops_laplacian=5, _lambda=1.0, kernel_size=3, loops_bilateral=0, sigma_length=0.1, sigma_angle=0.261, **kwargs):
     """Performs Laplacian Smoothing on Point Cloud and then performs Bilateral normal smoothing
 
     Arguments:

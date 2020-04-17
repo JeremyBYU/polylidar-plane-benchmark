@@ -144,7 +144,7 @@ def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
     # all_planes_classified = convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, avg_peaks, gt_image, stride,)
     # results, auxiliary = evaluate(gt_image, all_planes_classified)
     # get results
-    results, auxiliary = evaluate(pc_image, all_planes_classified)
+    results, auxiliary = evaluate(pc_image, all_planes_classified, tcomp=0.8)
     
     # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg,gray=ms_label_under_seg
     invalid_plane_markers = mark_invalid_planes(pc_raw, auxiliary, all_planes_classified)

@@ -73,9 +73,12 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
                                           polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=200,
                                                                 z_thresh=0.1, norm_thresh=0.96, norm_thresh_min=0.96, min_hole_vertices=50, task_threads=4),
-                                          filter_polygons=True):
+                                          filter_polygons=True, pl_=None):
+    if pl_ is not None:
+        pl = pl_
+    else:
+        pl = Polylidar3D(**polylidar_kwargs)
 
-    pl = Polylidar3D(**polylidar_kwargs)
     avg_peaks_mat = MatrixDouble(avg_peaks)
     t0 = time.perf_counter()
     all_planes, all_polygons = pl.extract_planes_and_polygons_optimized(tri_mesh, avg_peaks_mat)
@@ -176,7 +179,11 @@ def paint_planes(all_planes, tri_mesh_o3d):
     return new_mesh
 
 
-def get_image_peaks(ico_chart, ga, level=2, **kwargs):
+def get_image_peaks(ico_chart, ga, level=2, with_o3d=True, 
+                    find_peaks_kwargs=dict(threshold_abs=2, min_distance=1, exclude_border=False, indices=False), 
+                    cluster_kwargs=dict(t=0.10, criterion='distance'),
+                    average_filter=dict(min_total_weight=0.01),
+                    **kwargs):
 
     normalized_bucket_counts_by_vertex = ga.get_normalized_bucket_counts_by_vertex(True)
 
@@ -184,17 +191,22 @@ def get_image_peaks(ico_chart, ga, level=2, **kwargs):
     # image = np.asarray(ico_chart.image)
     # plt.imshow(image)
     # plt.show()
-    find_peaks_kwargs = dict(threshold_abs=2, min_distance=1, exclude_border=False, indices=False)
-    cluster_kwargs = dict(t=0.10, criterion='distance')
-    average_filter = dict(min_total_weight=0.01)
+    # find_peaks_kwargs = dict(threshold_abs=2, min_distance=1, exclude_border=False, indices=False)
+    # cluster_kwargs = dict(t=0.10, criterion='distance')
+    # average_filter = dict(min_total_weight=0.01)
 
     t1 = time.perf_counter()
     peaks, clusters, avg_peaks, avg_weights = find_peaks_from_ico_charts(ico_chart, np.asarray(
         normalized_bucket_counts_by_vertex), find_peaks_kwargs, cluster_kwargs, average_filter)
     t2 = time.perf_counter()
     gaussian_normals_sorted = np.asarray(ico_chart.sphere_mesh.vertices)
-    pcd_all_peaks = get_pc_all_peaks(peaks, clusters, gaussian_normals_sorted)
-    arrow_avg_peaks = get_arrow_normals(avg_peaks, avg_weights)
+    # Create Open3D structures for visualization
+    if with_o3d:
+        pcd_all_peaks = get_pc_all_peaks(peaks, clusters, gaussian_normals_sorted)
+        arrow_avg_peaks = get_arrow_normals(avg_peaks, avg_weights)
+    else:
+        pcd_all_peaks = None
+        arrow_avg_peaks = None
 
     elapsed_time = (t2 - t1) * 1000
     timings = dict(fastga_peak=elapsed_time)
@@ -215,10 +227,19 @@ def down_sample_normals(triangle_normals, ds=4, min_samples=10000, flip_normals=
     return triangle_normals_ds
 
 
-def extract_all_dominant_plane_normals(tri_mesh, level=5, **kwargs):
-    # TODO don't create new everytime
-    ga = GaussianAccumulatorS2(level=level)
-    ico_chart = IcoCharts(level=level)
+def extract_all_dominant_plane_normals(tri_mesh, level=5, with_o3d=True, ga_=None, ico_chart_=None,**kwargs):
+
+    # Reuse objects if provided
+    if ga_ is not None:
+        ga = ga_
+    else:
+        ga = GaussianAccumulatorS2(level=level)
+
+    if ico_chart_ is not None:
+        ico_chart = ico_chart_
+    else:
+        ico_chart = IcoCharts(level=level)
+
 
     triangle_normals = np.asarray(tri_mesh.triangle_normals)
     triangle_normals_ds = down_sample_normals(triangle_normals, **kwargs)
@@ -231,15 +252,19 @@ def extract_all_dominant_plane_normals(tri_mesh, level=5, **kwargs):
     logger.info("Gaussian Accumulator - Normals Sampled: %d; Took (ms): %.2f",
                 triangle_normals_ds.shape[0], (t2 - t1) * 1000)
 
-    avg_peaks, pcd_all_peaks, arrow_avg_peaks, timings_dict = get_image_peaks(ico_chart, ga, level=level)
+    avg_peaks, pcd_all_peaks, arrow_avg_peaks, timings_dict = get_image_peaks(ico_chart, ga, level=level, with_o3d=with_o3d, **kwargs)
 
     gaussian_normals = np.asarray(ga.get_bucket_normals())
     accumulator_counts = np.asarray(ga.get_normalized_bucket_counts())
 
-    # Visualize the Sphere
-    refined_icosahedron_mesh = create_open_3d_mesh(np.asarray(ga.mesh.triangles), np.asarray(ga.mesh.vertices))
-    color_counts = get_colors(accumulator_counts)[:, :3]
-    colored_icosahedron = assign_vertex_colors(refined_icosahedron_mesh, color_counts)
+    # Create Open3D structures for visualization
+    if with_o3d:
+        # Visualize the Sphere
+        refined_icosahedron_mesh = create_open_3d_mesh(np.asarray(ga.mesh.triangles), np.asarray(ga.mesh.vertices))
+        color_counts = get_colors(accumulator_counts)[:, :3]
+        colored_icosahedron = assign_vertex_colors(refined_icosahedron_mesh, color_counts)
+    else:
+        colored_icosahedron = None
 
     elapsed_time_fastga = (t2 - t1) * 1000
     elapsed_time_peak = timings_dict['fastga_peak']

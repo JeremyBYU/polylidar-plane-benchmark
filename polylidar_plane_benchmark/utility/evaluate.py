@@ -7,7 +7,7 @@ SYNPEB_VALID_INDICES = 10
 np.set_printoptions(threshold=3600, linewidth=250, precision=2, suppress=True)
 
 
-def evaluate(gt_image, planes_ms, tcomp=0.80):
+def evaluate(gt_image, planes_ms, tcomp=0.80, misc=''):
     """Reports evaluation metrics of ground truth vs machine segmented planes
     The key metrics are
         n_corr_seg = # of Correctly segmented ground truth planes
@@ -26,6 +26,9 @@ def evaluate(gt_image, planes_ms, tcomp=0.80):
     Returns:
         [tuple(Dict, Dict) -- The first dict provides evaluation metrics, the second is used for debugging
     """
+    # Used for miscellaneous error reporting
+    if misc:
+        misc['tcomp'] = tcomp
     # Note when I use the word class/label it means a unique plane
     # This creates a flattened array of each pixels class
     gt_pixel_labels = gt_image[:, :, 3].flatten().astype(np.int)
@@ -175,10 +178,10 @@ def evaluate(gt_image, planes_ms, tcomp=0.80):
     test_ms = np.row_stack([np.sum(correct_seg_final, axis=0), under_seg_final, over_seg_cause, noise_seg])
 
     if not np.array_equal(np.sum(test_gt, 1), np.ones((n_gt, ), dtype=np.int)):
-        logger.error('Ground-truth classification is not consistent!')
+        logger.error('Ground-truth classification is not consistent! Misc: %r', misc)
 
     if not np.array_equal(np.sum(test_ms, 0), np.ones((n_ms, ), dtype=np.int)):
-        logger.error('Measurement classification is not consistent!')
+        logger.error('Measurement classification is not consistent! Misc: %r', misc)
 
 
     # gt and ms plane ids for each category for debugging purposes
