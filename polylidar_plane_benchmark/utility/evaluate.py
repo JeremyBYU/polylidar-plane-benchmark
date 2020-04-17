@@ -4,7 +4,7 @@ import numpy as np
 logger = logging.getLogger('PPB')
 SYNPEB_VALID_INDICES = 10
 
-np.set_printoptions(threshold=3600, linewidth=250, precision=2, suppress=True)
+np.set_printoptions(threshold=3600, linewidth=350, precision=2, suppress=True)
 
 
 def evaluate(gt_image, planes_ms, tcomp=0.80, misc=''):
@@ -173,7 +173,7 @@ def evaluate(gt_image, planes_ms, tcomp=0.80, misc=''):
     logger.info("f_corr: %.2f; f_weighted_corr: %.2f; n_corr: %d; n_over_seg: %d; n_under_seg: %d; n_missed_seg: %d; n_noise_seg: %d",
                 f_corr_seg, f_weighted_corr_seg, n_corr_seg, n_over_seg, n_under_seg, n_missed_seg, n_noise_seg)
 
-    # import ipdb; ipdb.set_trace()
+
     test_gt = np.column_stack([np.sum(correct_seg_final, axis=1), over_seg_final, under_seg_cause, missed_seg])
     test_ms = np.row_stack([np.sum(correct_seg_final, axis=0), under_seg_final, over_seg_cause, noise_seg])
 
@@ -183,7 +183,7 @@ def evaluate(gt_image, planes_ms, tcomp=0.80, misc=''):
     if not np.array_equal(np.sum(test_ms, 0), np.ones((n_ms, ), dtype=np.int)):
         logger.error('Measurement classification is not consistent! Misc: %r', misc)
 
-
+    # import ipdb; ipdb.set_trace()
     # gt and ms plane ids for each category for debugging purposes
     gt_labels_missed = gt_unique_labels_filtered[np.ma.make_mask(missed_seg)]
     ms_labels_noise = np.where(np.ma.make_mask(noise_seg))[0]

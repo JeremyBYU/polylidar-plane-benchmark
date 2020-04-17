@@ -46,9 +46,8 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilate
     # Create Open3D point cloud
     cmap = cc.cm.glasbey_bw
     pcd_raw = create_open_3d_pcd(pc_raw[:, :3], pc_raw[:, 3], cmap=cmap)
-
     # tri_mesh, tri_mesh_o3d = create_meshes(pc_points, stride=stride, loops=loops)
-    tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda_with_o3d(pc_image, loops_laplacian=loops, _lambda=_lambda, kernel_size=kernel_size, loops_bilateral=loops_bilateral, sigma_angle=0.15, **kwargs)
+    tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda_with_o3d(pc_image, loops_laplacian=loops, _lambda=_lambda, loops_bilateral=loops_bilateral, kernel_size=kernel_size, sigma_angle=0.27, **kwargs)
 
     logger.info("Visualizing Point Cloud - Size: %dX%d ; # Points: %d; # Triangles: %d",
                 pc_image.shape[0], pc_image.shape[1], pc_raw.shape[0], np.asarray(tri_mesh.triangles).shape[0])
@@ -72,7 +71,7 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
                                           polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=200,
-                                                                z_thresh=0.1, norm_thresh=0.96, norm_thresh_min=0.96, min_hole_vertices=50, task_threads=4),
+                                                                z_thresh=0.1, norm_thresh=0.97, norm_thresh_min=0.97, min_hole_vertices=50, task_threads=4),
                                           filter_polygons=True, pl_=None):
     if pl_ is not None:
         pl = pl_

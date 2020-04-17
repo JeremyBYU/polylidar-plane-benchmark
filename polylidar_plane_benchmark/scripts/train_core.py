@@ -5,6 +5,7 @@ import time
 import csv
 
 import numpy as np
+import colorcet as cc
 
 from polylidar_plane_benchmark import (DEFAULT_PPB_FILE, DEFAULT_PPB_FILE_SECONDARY, logger, SYNPEB_ALL_FNAMES, SYNPEB_DIR, SYNPEB_MESHES_DIR,
                                        SYNPEB_DIR_TEST_GT, SYNPEB_DIR_TRAIN_GT, SYNPEB_DIR_TEST_ALL, SYNPEB_DIR_TRAIN_ALL)
@@ -83,7 +84,7 @@ def evaluate_with_params(param_set, variance, counter=None):
 
     csv_fpath = get_csv_fpath(variance)
     with open(csv_fpath, 'w', newline='') as csv_file:
-        fieldnames = ['variance','fname', 'tcomp',
+        fieldnames = ['variance', 'fname', 'tcomp',
                       'kernel_size', 'loops_bilateral', 'loops_laplacian', 'sigma_angle',
                       'min_total_weight', 'norm_thresh_min', 'threshold_abs', 'n_gt',
                       'n_ms_all', 'f_weighted_corr_seg', 'f_corr_seg', 'n_corr_seg',
@@ -159,3 +160,79 @@ def evaluate_with_params(param_set, variance, counter=None):
                 if counter is not None:
                     with counter.get_lock():
                         counter.value += 1
+
+
+def evaluate_with_params_visualize(params):
+
+    from polylidar_plane_benchmark.utility.helper import (
+        convert_planes_to_classified_point_cloud, load_pcd_file, paint_planes,
+        extract_all_dominant_plane_normals, extract_planes_and_polygons_from_mesh)
+    from polylidar_plane_benchmark.utility.evaluate import evaluate
+    from polylidar_plane_benchmark.utility.helper_mesh import create_meshes_cuda
+    from polylidar_plane_benchmark.utility.o3d_util import create_open_3d_pcd, plot_meshes, create_open_3d_mesh_from_tri_mesh, mark_invalid_planes
+
+    # from polylidar_plane_benchmark.utility.helper_mesh import lo
+    variance = params['variance']
+    all_fpaths = get_fpaths(params['variance'])
+    fpaths = [fpath for fpath in all_fpaths if params['fname'] in fpath]
+    fpath = fpaths[0]
+
+    # Create Long Lived Objects Only Once
+    ga = GaussianAccumulatorS2(level=level_default)  # Fast Gaussian Accumulator
+    ico_chart = IcoCharts(level=level_default)  # Used for unwrapping S2 to Image for peak detection
+    pl = Polylidar3D(**polylidar_kwargs_default)  # Region Growing and Polygons Extraction
+
+    fname = pathlib.Path(fpath).name
+    logger_train.info("Working on file %s", fpath)
+
+
+    pc_raw, pc_image = load_pcd_file(all_fpaths[0], stride=2)
+    pc_points = np.ascontiguousarray(pc_raw[:, :3])
+    # Create Open3D point cloud
+    cmap = cc.cm.glasbey_bw
+    pcd_raw = create_open_3d_pcd(pc_raw[:, :3], pc_raw[:, 3], cmap=cmap)
+    
+
+    pl.norm_thresh = params['norm_thresh_min']
+    pl.norm_thresh_min = params['norm_thresh_min']
+
+    t1 = time.perf_counter()
+    mesh_kwargs = {k: params[k]
+                   for k in ('loops_laplacian', 'kernel_size', 'loops_bilateral', 'sigma_angle')}
+
+    tri_mesh, mesh_timings = create_meshes_cuda(pc_image, **mesh_kwargs)
+    mesh_kwargs_previous = mesh_kwargs
+
+    # Set up kwargs for finding dominiant plane normals (image peak detection)
+    find_peaks_kwargs = dict(threshold_abs=params['threshold_abs'],
+                             min_distance=1, exclude_border=False, indices=False)
+    cluster_kwargs = dict(t=0.10, criterion='distance')
+    average_filter = dict(min_total_weight=params['min_total_weight'])
+    # Extract Dominant Plane Peaks
+    avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, fastga_timings = extract_all_dominant_plane_normals(tri_mesh, level=level_default,
+                                                                                                                        with_o3d=True, ga_=ga, ico_chart_=ico_chart,
+                                                                                                                        find_peaks_kwargs=find_peaks_kwargs,
+                                                                                                                        cluster_kwargs=cluster_kwargs,
+                                                                                                                        average_filter=average_filter)
+    # Extact Planes and Polygons
+    all_planes, all_polygons, all_poly_lines, polylidar_timings = extract_planes_and_polygons_from_mesh(
+        tri_mesh, avg_peaks, filter_polygons=False, pl_=pl)
+
+    # Aggregate timings
+    all_timings = dict(**mesh_timings, **fastga_timings, **polylidar_timings)
+
+    # Convert planes to format used for evaluation
+    all_planes_classified = convert_planes_to_classified_point_cloud(all_planes, tri_mesh, avg_peaks)
+    # Evaluate the results. This actually takes the longest amount of time!
+    misc = dict(**params)
+    # results_080, auxiliary_080 = evaluate(pc_image, all_planes_classified, tcomp=0.80, misc=misc)
+    results_070, auxiliary_070 = evaluate(pc_image, all_planes_classified, tcomp=0.70, misc=misc)
+    # print(results)
+    logger_train.info("Finished %r", params)
+
+    # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg,gray=ms_label_under_seg
+    invalid_plane_markers = mark_invalid_planes(pc_raw, auxiliary_070, all_planes_classified)
+    tri_mesh_o3d = create_open_3d_mesh_from_tri_mesh(tri_mesh)
+    tri_mesh_o3d_painted = paint_planes(all_planes_classified, tri_mesh_o3d)
+
+    plot_meshes([pcd_raw, tri_mesh_o3d_painted, *invalid_plane_markers])
