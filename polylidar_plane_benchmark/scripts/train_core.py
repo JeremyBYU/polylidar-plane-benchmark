@@ -40,12 +40,6 @@ def get_fpaths(variance, data='train'):
     return all_fpaths
 
 
-# Long Lived Objects
-# Polylidar3D Object
-#   - Update norm_thresh and norm_thresh_min
-# GaussianAccumulatorS2(level=level)
-# IcoCharts(level=level)
-#
 
 polylidar_kwargs_default = dict(alpha=0.0, lmax=0.1, min_triangles=200,
                                 z_thresh=0.1, norm_thresh=0.96, norm_thresh_min=0.96,
@@ -167,10 +161,11 @@ def evaluate_with_params_visualize(params):
     from polylidar_plane_benchmark.utility.helper import (
         convert_planes_to_classified_point_cloud, load_pcd_file, paint_planes,
         extract_all_dominant_plane_normals, extract_planes_and_polygons_from_mesh)
-    from polylidar_plane_benchmark.utility.evaluate import evaluate
+    from polylidar_plane_benchmark.utility.evaluate import evaluate, evaluate_incorrect
     from polylidar_plane_benchmark.utility.helper_mesh import create_meshes_cuda
     from polylidar_plane_benchmark.utility.o3d_util import create_open_3d_pcd, plot_meshes, create_open_3d_mesh_from_tri_mesh, mark_invalid_planes
 
+    logger.setLevel(logging.INFO)
     # from polylidar_plane_benchmark.utility.helper_mesh import lo
     variance = params['variance']
     all_fpaths = get_fpaths(params['variance'])
@@ -226,11 +221,12 @@ def evaluate_with_params_visualize(params):
     # Evaluate the results. This actually takes the longest amount of time!
     misc = dict(**params)
     # results_080, auxiliary_080 = evaluate(pc_image, all_planes_classified, tcomp=0.80, misc=misc)
-    results_070, auxiliary_070 = evaluate(pc_image, all_planes_classified, tcomp=0.70, misc=misc)
+    results_070, auxiliary_070 = evaluate_incorrect(pc_image, all_planes_classified, tcomp=params['tcomp'], misc=misc)
+    results_070, auxiliary_070 = evaluate(pc_image, all_planes_classified, tcomp=params['tcomp'], misc=misc)
     # print(results)
     logger_train.info("Finished %r", params)
 
-    # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg,gray=ms_label_under_seg
+    # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg, gray=ms_label_under_seg
     invalid_plane_markers = mark_invalid_planes(pc_raw, auxiliary_070, all_planes_classified)
     tri_mesh_o3d = create_open_3d_mesh_from_tri_mesh(tri_mesh)
     tri_mesh_o3d_painted = paint_planes(all_planes_classified, tri_mesh_o3d)
