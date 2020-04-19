@@ -1,7 +1,8 @@
 from multiprocessing import Pool, Value, Process
 import signal
 import time
-import sys, traceback
+import sys
+import traceback
 
 from tqdm import tqdm
 from sklearn.model_selection import ParameterGrid
@@ -61,7 +62,7 @@ def get_permutations():
     return all_parameters
 
 
-def show_prog(counter:Value, total_iterations):
+def show_prog(counter: Value, total_iterations):
     prog = tqdm(total=total_iterations, desc="Total")
     while 1:
         try:
@@ -74,46 +75,62 @@ def show_prog(counter:Value, total_iterations):
         except:
             continue
 
+
 def initializer():
     """Ignore CTRL+C in the worker process."""
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+
 def main():
     params = get_permutations()
+    # params = params[:100]
 
     counter = Value('i', 0)
 
-    # params = params[:10]
+    param_split = 2
     num_variances = 4
     num_files = 10
-
     total_iterations = len(params) * num_files * num_variances
 
-    iterable_params = []
-    for variance in range(1, 5):
-        iterable_params.append((params, variance, counter))
-    
+    step_size = int(len(params) / param_split)
+    params_subset = [params[i:i + step_size] for i in range(0, len(params), step_size)]
+    assert len(params_subset) == param_split
+
+    function_args = []
+    for i in range(num_variances):
+        variance = i + 1
+        for param_index, param_subset in enumerate(params_subset):
+            assert len(param_subset) == int(len(params) / param_split), "Param subset should be an even split"
+            function_args.append((param_subset, param_index, variance, counter))
+
+    # import ipdb; ipdb.set_trace()
+    total_processes = num_variances * param_split
     try:
-        procs = [Process(target=evaluate_with_params, args=(params, i, counter)) for i in range(1, 5)]
+        procs = [Process(target=evaluate_with_params, args=function_args[i]) for i in range(total_processes)]
         progress = Process(target=show_prog, args=(counter, total_iterations))
         progress.start()
-        for p in procs: p.start()
-        for p in procs: p.join()
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join()
         progress.join()
     except KeyboardInterrupt:
         print("Received Keyboard interrupt! Stopping all processes!")
-        for p in procs: p.kill()
-        for p in procs: p.join()
+        for p in procs:
+            p.kill()
+        for p in procs:
+            p.join()
         progress.kill()
         progress.join()
     except Exception as e:
         print("Received Exception in Main Thread! Stopping all processes!")
-        for p in procs: p.kill()
-        for p in procs: p.join()
+        for p in procs:
+            p.kill()
+        for p in procs:
+            p.join()
         progress.kill()
         progress.join()
         traceback.print_exc(file=sys.stdout)
-
 
 
 if __name__ == "__main__":
