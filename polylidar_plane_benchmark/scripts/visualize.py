@@ -31,7 +31,7 @@ def visualize():
 @visualize.command()
 @click.option('-i', '--input-file', type=click.Path(exists=True), default=DEFAULT_PPB_FILE)
 @click.option('-s', '--stride', type=int, default=2)
-@click.option('-l', '--loops', type=int, default=20)
+@click.option('-l', '--loops', type=int, default=5)
 @click.option('--llambda', type=float, default=1.0)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
 def pcd(input_file: str, stride, loops, llambda, loops_bilateral):
@@ -50,12 +50,14 @@ def pcd(input_file: str, stride, loops, llambda, loops_bilateral):
 @visualize.command()
 @click.option('-i', '--input-file', type=click.Path(exists=True), default=DEFAULT_PPB_FILE)
 @click.option('-s', '--stride', type=int, default=2)
-@click.option('-l', '--loops', type=int, default=20)
+@click.option('-l', '--loops', type=int, default=5)
 @click.option('--llambda', type=float, default=1.0)
+@click.option('-ks', '--kernel-size', type=int, default=3)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
-def mesh(input_file: str, stride, loops, llambda, loops_bilateral):
+def mesh(input_file: str, stride, loops, llambda, kernel_size, loops_bilateral):
     """Visualize Mesh from PCD File"""
-    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(input_file, stride, loops, llambda, loops_bilateral)
+    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(
+        input_file, stride, loops, llambda, loops_bilateral, kernel_size=kernel_size)
 
     # Write Smoothed Mesh to File, debugging purposes
     output_file = str(input_file).replace(str(SYNPEB_DIR), str(SYNPEB_MESHES_DIR))
@@ -70,12 +72,14 @@ def mesh(input_file: str, stride, loops, llambda, loops_bilateral):
 @visualize.command()
 @click.option('-i', '--input-file', type=click.Path(exists=True), default=DEFAULT_PPB_FILE)
 @click.option('-s', '--stride', type=int, default=2)
-@click.option('-l', '--loops', type=int, default=20)
+@click.option('-l', '--loops', type=int, default=5)
 @click.option('--llambda', type=float, default=1.0)
+@click.option('-ks', '--kernel-size', type=int, default=3)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
-def ga(input_file, stride, loops, llambda, loops_bilateral):
+def ga(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
     """Visualize Gaussian Accumulator File"""
-    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(input_file, stride, loops, llambda, loops_bilateral)
+    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(
+        input_file, stride, loops, llambda, loops_bilateral, kernel_size=kernel_size)
 
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, _ = extract_all_dominant_plane_normals(tri_mesh)
 
@@ -86,22 +90,22 @@ def ga(input_file, stride, loops, llambda, loops_bilateral):
 @visualize.command()
 @click.option('-i', '--input-file', type=click.Path(exists=True), default=DEFAULT_PPB_FILE)
 @click.option('-s', '--stride', type=int, default=2)
-@click.option('-l', '--loops', type=int, default=20)
+@click.option('-l', '--loops', type=int, default=5)
 @click.option('--llambda', type=float, default=1.0)
+@click.option('-ks', '--kernel-size', type=int, default=3)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
-def polygons(input_file, stride, loops, llambda, loops_bilateral):
+def polygons(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
     """Visualize Polygon Extraction File"""
-    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(input_file, stride, loops, llambda, loops_bilateral)
+    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(
+        input_file, stride, loops, llambda, loops_bilateral, kernel_size=kernel_size)
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, _ = extract_all_dominant_plane_normals(tri_mesh)
     _, _, all_poly_lines, _ = extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks)
     mesh_3d_polylidar = []
     mesh_3d_polylidar.extend(flatten([line_mesh.cylinder_segments for line_mesh in all_poly_lines]))
-    
+
     plot_meshes([pcd_raw, tri_mesh_o3d, *mesh_3d_polylidar])
 
-
-
-def plot_triangle_normals(normals:np.ndarray):
+def plot_triangle_normals(normals: np.ndarray):
     colors = ((normals * 0.5 + 0.5) * 255).astype(np.uint8)
     im = colors.reshape((249, 249, 2, 3))
     im = im[:, :, 1, :]
@@ -112,16 +116,16 @@ def plot_triangle_normals(normals:np.ndarray):
 @visualize.command()
 @click.option('-i', '--input-file', type=click.Path(exists=True), default=DEFAULT_PPB_FILE)
 @click.option('-s', '--stride', type=int, default=2)
-@click.option('-l', '--loops', type=int, default=20)
+@click.option('-l', '--loops', type=int, default=5)
 @click.option('--llambda', type=float, default=1.0)
-@click.option('-ks','--kernel-size', type=int, default=3)
+@click.option('-ks', '--kernel-size', type=int, default=3)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
 def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
     """Visualize Polygon Extraction File"""
-    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, mesh_timings = load_pcd_and_meshes(input_file, stride, loops, llambda, loops_bilateral, kernel_size=kernel_size)
+    pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, mesh_timings = load_pcd_and_meshes(
+        input_file, stride, loops, llambda, loops_bilateral, kernel_size=kernel_size)
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, fastga_timings = extract_all_dominant_plane_normals(
         tri_mesh)
-
 
     # print(avg_peaks)
     # print((avg_peaks * 0.5 + 0.5) * 255)
@@ -129,7 +133,8 @@ def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
     # tri_mesh_normals = np.asarray(tri_mesh.triangle_normals)
     # plot_triangle_normals(tri_mesh_normals)
 
-    all_planes, all_polygons,  _, polylidar_timings = extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks, filter_polygons=False)
+    all_planes, all_polygons, _, polylidar_timings = extract_planes_and_polygons_from_mesh(
+        tri_mesh, avg_peaks, filter_polygons=False)
 
     all_timings = dict(**mesh_timings, **fastga_timings, **polylidar_timings)
     all_planes_classified = convert_planes_to_classified_point_cloud(all_planes, tri_mesh, avg_peaks)
@@ -140,12 +145,12 @@ def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
 
     # can be evaluated by polygons (using downsampled image) or just the planes
     # for evaluation we need the full point cloud, not downsampled
-    _, gt_image = load_pcd_file(input_file, stride=1)
+    # _, gt_image = load_pcd_file(input_file, stride=1)
     # all_planes_classified = convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, avg_peaks, gt_image, stride,)
     # results, auxiliary = evaluate(gt_image, all_planes_classified)
     # get results
     results, auxiliary = evaluate(pc_image, all_planes_classified, tcomp=0.8)
-    
+
     # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg,gray=ms_label_under_seg
     invalid_plane_markers = mark_invalid_planes(pc_raw, auxiliary, all_planes_classified)
 
@@ -158,9 +163,9 @@ def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
 @click.option('-v', '--variance', type=click.Choice(['0', '1', '2', '3', '4']), default='1')
 @click.option('-d', '--data', default="train")
 @click.option('-s', '--stride', type=int, default=2)
-@click.option('-l', '--loops', type=int, default=10)
+@click.option('-l', '--loops', type=int, default=5)
 @click.option('--llambda', type=float, default=1.0)
-@click.option('-ks','--kernel-size', type=int, default=3)
+@click.option('-ks', '--kernel-size', type=int, default=3)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
 @click.pass_context
 def planes_all(ctx, variance, data, stride, loops, llambda, kernel_size, loops_bilateral):
@@ -178,14 +183,15 @@ def planes_all(ctx, variance, data, stride, loops, llambda, kernel_size, loops_b
     for fname in all_fnames:
         fpath = str(base_dir / fname)
         logger.info("File: %s; stride=%d, loops=%d", fpath, stride, loops)
-        ctx.invoke(planes, input_file=fpath, stride=stride, loops=loops, llambda=llambda, kernel_size=kernel_size, loops_bilateral=loops_bilateral)
+        ctx.invoke(planes, input_file=fpath, stride=stride, loops=loops, llambda=llambda,
+                   kernel_size=kernel_size, loops_bilateral=loops_bilateral)
 
 
 @visualize.command()
 @click.option('-v', '--variance', type=click.Choice(['0', '1', '2', '3', '4']), default='1')
 @click.option('-d', '--data', default="train")
 @click.option('-s', '--stride', type=int, default=2)
-@click.option('-l', '--loops', type=int, default=10)
+@click.option('-l', '--loops', type=int, default=5)
 @click.option('--llambda', type=float, default=1.0)
 @click.pass_context
 def polygons_all(ctx, variance, data, stride, loops, llambda):
@@ -208,6 +214,7 @@ def polygons_all(ctx, variance, data, stride, loops, llambda):
 
 def main():
     visualize()
+
 
 if __name__ == "__main__":
     main()

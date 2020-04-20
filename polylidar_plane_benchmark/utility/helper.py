@@ -29,14 +29,14 @@ import organizedpointfilters.cuda as opf_cuda
 from organizedpointfilters import Matrix3f, Matrix3fRef
 import colorcet as cc
 
-from polylidar_plane_benchmark.utility.geometry import convert_to_shapely_geometry_in_image_space,rasterize_polygon, extract_image_coordinates
+from polylidar_plane_benchmark.utility.geometry import convert_to_shapely_geometry_in_image_space, rasterize_polygon, extract_image_coordinates
 
 # Set the random seeds for determinism
 random.seed(0)
 np.random.seed(0)
 
 
-def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilateral=0,  kernel_size=3, **kwargs):
+def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilateral=0, kernel_size=3, **kwargs):
     """Load PCD and Meshes
     """
     pc_raw, pc_image = load_pcd_file(input_file, stride)
@@ -47,7 +47,8 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilate
     cmap = cc.cm.glasbey_bw
     pcd_raw = create_open_3d_pcd(pc_raw[:, :3], pc_raw[:, 3], cmap=cmap)
     # tri_mesh, tri_mesh_o3d = create_meshes(pc_points, stride=stride, loops=loops)
-    tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda_with_o3d(pc_image, loops_laplacian=loops, _lambda=_lambda, loops_bilateral=loops_bilateral, kernel_size=kernel_size, sigma_angle=0.27, **kwargs)
+    tri_mesh, tri_mesh_o3d, timings = create_meshes_cuda_with_o3d(pc_image, loops_laplacian=loops, _lambda=_lambda,
+                                                                  loops_bilateral=loops_bilateral, kernel_size=kernel_size, sigma_angle=0.1, **kwargs)
 
     logger.info("Visualizing Point Cloud - Size: %dX%d ; # Points: %d; # Triangles: %d",
                 pc_image.shape[0], pc_image.shape[1], pc_raw.shape[0], np.asarray(tri_mesh.triangles).shape[0])
@@ -135,7 +136,7 @@ def convert_planes_to_classified_point_cloud(all_planes, tri_mesh, all_normals, 
 def convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, all_normals, gt_image=None, stride=2, filter_kwargs=dict()):
     logger.info("Total number of normals identified: %d", len(all_polygons))
     all_classified_planes = []
-    class_index_counter = 1 # start class indices at 1
+    class_index_counter = 1  # start class indices at 1
 
     # The ground truth ORIGINAL image size
     window_size_out = gt_image.shape[0:2]
@@ -143,7 +144,6 @@ def convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, all_norma
     window_size_in = (np.array(window_size_out) / stride).astype(np.int)
     # used to hold rasterization of polygons
     image_out = np.zeros(window_size_out, dtype=np.uint8)
-
 
     total_points = gt_image.shape[0] * gt_image.shape[1]
     # A flattened array of the point indices
@@ -183,8 +183,8 @@ def paint_planes(all_planes, tri_mesh_o3d):
     return new_mesh
 
 
-def get_image_peaks(ico_chart, ga, level=2, with_o3d=True, 
-                    find_peaks_kwargs=dict(threshold_abs=2, min_distance=1, exclude_border=False, indices=False), 
+def get_image_peaks(ico_chart, ga, level=2, with_o3d=True,
+                    find_peaks_kwargs=dict(threshold_abs=2, min_distance=1, exclude_border=False, indices=False),
                     cluster_kwargs=dict(t=0.10, criterion='distance'),
                     average_filter=dict(min_total_weight=0.01),
                     **kwargs):
@@ -231,7 +231,7 @@ def down_sample_normals(triangle_normals, ds=4, min_samples=10000, flip_normals=
     return triangle_normals_ds
 
 
-def extract_all_dominant_plane_normals(tri_mesh, level=5, with_o3d=True, ga_=None, ico_chart_=None,**kwargs):
+def extract_all_dominant_plane_normals(tri_mesh, level=5, with_o3d=True, ga_=None, ico_chart_=None, **kwargs):
 
     # Reuse objects if provided
     if ga_ is not None:
@@ -244,7 +244,6 @@ def extract_all_dominant_plane_normals(tri_mesh, level=5, with_o3d=True, ga_=Non
     else:
         ico_chart = IcoCharts(level=level)
 
-
     triangle_normals = np.asarray(tri_mesh.triangle_normals)
     triangle_normals_ds = down_sample_normals(triangle_normals, **kwargs)
 
@@ -256,7 +255,8 @@ def extract_all_dominant_plane_normals(tri_mesh, level=5, with_o3d=True, ga_=Non
     logger.info("Gaussian Accumulator - Normals Sampled: %d; Took (ms): %.2f",
                 triangle_normals_ds.shape[0], (t2 - t1) * 1000)
 
-    avg_peaks, pcd_all_peaks, arrow_avg_peaks, timings_dict = get_image_peaks(ico_chart, ga, level=level, with_o3d=with_o3d, **kwargs)
+    avg_peaks, pcd_all_peaks, arrow_avg_peaks, timings_dict = get_image_peaks(
+        ico_chart, ga, level=level, with_o3d=with_o3d, **kwargs)
 
     gaussian_normals = np.asarray(ga.get_bucket_normals())
     accumulator_counts = np.asarray(ga.get_normalized_bucket_counts())
@@ -277,6 +277,7 @@ def extract_all_dominant_plane_normals(tri_mesh, level=5, with_o3d=True, ga_=Non
     timings = dict(fastga_total=elapsed_time_total, fastga_integrate=elapsed_time_fastga, fastga_peak=elapsed_time_peak)
 
     return avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, timings
+
 
 def load_pcd_file(fpath, stride=2):
     pc = pypcd.PointCloud.from_path(fpath)

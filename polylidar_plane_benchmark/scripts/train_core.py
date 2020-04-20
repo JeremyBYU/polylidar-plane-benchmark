@@ -30,7 +30,7 @@ def get_fpaths(variance, data='train'):
             variance) - 1] if data == "train" else SYNPEB_DIR_TEST_ALL[int(variance) - 1]
 
     all_fnames = SYNPEB_ALL_FNAMES
-    if int(variance) != 0:
+    if data == 'train':
         all_fnames = all_fnames[0:10]
 
     all_fpaths = [str(base_dir / fname) for fname in all_fnames]
@@ -43,18 +43,18 @@ polylidar_kwargs_default = dict(alpha=0.0, lmax=0.1, min_triangles=200,
 level_default = 5
 
 
-def get_csv_fpath(variance=1, param_index=0):
+def get_csv_fpath(variance=1, param_index=0, data='train'):
     this_dir = pathlib.Path(__file__).parent
     data_dir = this_dir.parent.parent / "data"
     results_dir = data_dir / "synpeb_results"
 
-    fname = "synpeb_variance_{}_params_{}.csv".format(variance, param_index)
+    fname = "synpeb_{}_variance_{}_params_{}.csv".format(data, variance, param_index)
 
     fpath = results_dir / fname
     return fpath
 
 
-def evaluate_with_params(param_set, param_index, variance, counter=None):
+def evaluate_with_params(param_set, param_index, variance, counter=None, data='train'):
     from polylidar_plane_benchmark.utility.helper import (
         convert_planes_to_classified_point_cloud, load_pcd_file,
         extract_all_dominant_plane_normals, extract_planes_and_polygons_from_mesh)
@@ -64,7 +64,7 @@ def evaluate_with_params(param_set, param_index, variance, counter=None):
     from polylidar import Polylidar3D
     from fastga import GaussianAccumulatorS2, IcoCharts
 
-    all_fpaths = get_fpaths(variance)
+    all_fpaths = get_fpaths(variance, data=data)
 
     # Create Long Lived Objects Only Once
     ga = GaussianAccumulatorS2(level=level_default)  # Fast Gaussian Accumulator
@@ -72,7 +72,7 @@ def evaluate_with_params(param_set, param_index, variance, counter=None):
     pl = Polylidar3D(**polylidar_kwargs_default)  # Region Growing and Polygons Extraction
 
     # logger_train.warn("Working on variance %r, param index %r with %r elements", variance, param_index, len(param_set))
-    csv_fpath = get_csv_fpath(variance, param_index)
+    csv_fpath = get_csv_fpath(variance, param_index, data=data)
     with open(csv_fpath, 'w', newline='') as csv_file:
         fieldnames = ['variance', 'fname', 'tcomp',
                       'kernel_size', 'loops_bilateral', 'loops_laplacian', 'sigma_angle',
