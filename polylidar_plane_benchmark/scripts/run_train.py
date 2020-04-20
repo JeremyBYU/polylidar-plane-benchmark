@@ -10,6 +10,22 @@ import itertools
 from polylidar_plane_benchmark.scripts.train_core import evaluate_with_params
 
 
+
+    # mesh_param_grid = dict(
+    #     loops_laplacian=[1, 2, 4, 6, 8],
+    #     kernel_size=[3, 5],
+    #     loops_bilateral=[0, 1, 2, 4, 6, 8],
+    #     sigma_angle=[0.10, 0.20],
+    # )
+    # all_else_grid = dict(
+    #     # Fast GA Peak Identification
+    #     threshold_abs=[2, 4],
+    #     min_total_weight=[0.01, 0.02],
+
+    #     # Polylidar
+    #     norm_thresh_min=[0.95, .96],
+    # )
+
 def get_permutations():
     mesh_param_grid = dict(
         loops_laplacian=[1, 2, 4, 6, 8],
@@ -19,46 +35,18 @@ def get_permutations():
     )
     all_else_grid = dict(
         # Fast GA Peak Identification
-        threshold_abs=[2, 4],
-        min_total_weight=[0.01, 0.02],
 
         # Polylidar
-        norm_thresh_min=[0.95, .96],
+        norm_thresh_min=[0.95],
+        min_triangles=[1000, 2000],
+        # Downsampling
+        stride=[1]
     )
     mesh_parameters = list(ParameterGrid(mesh_param_grid))
     else_parameters = list(ParameterGrid(all_else_grid))
 
     all_parameters = [{**l[0], **l[1]} for l in itertools.product(mesh_parameters, else_parameters)]
 
-    # param_grid = dict(
-    #     ## Mesh Smoothing
-    #     loops_laplacian=[1, 2, 4, 6, 8],
-    #     # laplacian_lambda=[1.0],
-    #     kernel_size=[3,5],
-    #     loops_bilateral=[1, 2, 4, 6, 8],
-    #     sigma_angle=[0.10, 0.20],
-
-    #     ## Fast GA Peak Identification
-    #     threshold_abs=[2, 4],
-    #     min_total_weight=[0.01, 0.02],
-
-    #     ## Polylidar
-    #     # lmax=[0.1],
-    #     # alpha=[0.0],
-    #     # min_triangles=[200],
-    #     # z_thresh=[0.1],
-    #     # min_hole_vertices=[50],
-    #     # task_threads=[4],
-    #     norm_thresh_min=[0.95, .96],
-
-    #     ## Evaluate Args
-    #     # tcomp=[0.7, 0.8],
-    #     # variance=[1, 2, 3, 4]
-    # )
-    # all_parameters = list(ParameterGrid(param_grid))
-
-    # print(all_parameters)
-    # print(len(all_parameters))
     return all_parameters
 
 
@@ -103,7 +91,6 @@ def main():
             assert len(param_subset) == int(len(params) / param_split), "Param subset should be an even split"
             function_args.append((param_subset, param_index, variance, counter))
 
-    # import ipdb; ipdb.set_trace()
     total_processes = num_variances * param_split
     try:
         procs = [Process(target=evaluate_with_params, args=function_args[i]) for i in range(total_processes)]
@@ -113,6 +100,9 @@ def main():
             p.start()
         for p in procs:
             p.join()
+        print("Finished All Processes")
+        for i,p in enumerate(procs):
+            print("Process {} returned {}".format(i, p.exitcode))
         progress.join()
     except KeyboardInterrupt:
         print("Received Keyboard interrupt! Stopping all processes!")

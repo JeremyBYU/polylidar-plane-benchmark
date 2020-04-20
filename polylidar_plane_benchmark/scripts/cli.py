@@ -22,6 +22,7 @@ click.core.Option.__init__ = new_init
 
 import numpy as np
 from polylidar_plane_benchmark.scripts.visualize import visualize
+from polylidar_plane_benchmark.scripts.analyze import analyze
 
 
 @click.group()
@@ -32,4 +33,5 @@ def cli():
 
 
 cli.add_command(visualize)
+cli.add_command(analyze)
 

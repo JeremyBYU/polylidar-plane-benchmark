@@ -20,7 +20,8 @@ logger.setLevel(logging.INFO)
 THIS_DIR = Path(__file__).parent
 MAIN_DIR = THIS_DIR / "../"
 TEST_FIXTURES_DIR = (MAIN_DIR / 'data').resolve()
-TEST_FIXTURES_DIR
+
+TRAIN_RESULTS_DIR = TEST_FIXTURES_DIR / 'synpeb_results'
 
 SYNPEB_DIR = TEST_FIXTURES_DIR / "synpeb"
 SYNPEB_MESHES_DIR = TEST_FIXTURES_DIR / "synpeb_meshes"

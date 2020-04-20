@@ -70,9 +70,10 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 
 
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
-                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=200,
-                                                                z_thresh=0.1, norm_thresh=0.97, norm_thresh_min=0.97, min_hole_vertices=50, task_threads=4),
+                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=1000,
+                                                                z_thresh=0.1, norm_thresh=0.95, norm_thresh_min=0.95, min_hole_vertices=50, task_threads=4),
                                           filter_polygons=True, pl_=None, optimized=True):
+
     if pl_ is not None:
         pl = pl_
     else:

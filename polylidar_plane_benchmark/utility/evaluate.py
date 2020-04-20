@@ -250,6 +250,13 @@ def evaluate(gt_image, planes_ms, tcomp=0.80, misc=''):
     n_gt = len(gt_planes_filtered)  # num of gt planes
     n_ms = len(planes_ms)           # num of machine segmented planes
 
+    # Shortcut if there are no predictions
+    if n_ms == 0:
+        results = dict(n_gt=n_gt, n_ms_all=0, f_weighted_corr_seg=0.0, f_corr_seg=0.0, n_corr_seg=0, n_over_seg=0, n_under_seg=0, n_missed_seg=n_gt, n_noise_seg=0)
+        auxiliary = dict(gt_labels_missed=[], ms_labels_noise=[], gt_labels_over_seg=[], ms_labels_under_seg=[])
+        return results, auxiliary
+
+
     # filtered ground truth labels, only used at end for debugging
     gt_unique_labels_filtered = np.array(
         [gt_unique_label for gt_unique_label in gt_unique_labels if gt_unique_label >= SYNPEB_VALID_INDICES], dtype=np.int)
