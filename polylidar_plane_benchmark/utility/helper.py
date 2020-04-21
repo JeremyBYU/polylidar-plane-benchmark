@@ -220,7 +220,7 @@ def get_image_peaks(ico_chart, ga, level=2, with_o3d=True,
     return avg_peaks, pcd_all_peaks, arrow_avg_peaks, timings
 
 
-def down_sample_normals(triangle_normals, ds=4, min_samples=10000, flip_normals=False, **kwargs):
+def down_sample_normals(triangle_normals, ds=8, min_samples=10000, flip_normals=False, **kwargs):
     num_normals = triangle_normals.shape[0]
     ds_normals = int(num_normals / ds)
     to_sample = max(min([num_normals, min_samples]), ds_normals)

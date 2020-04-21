@@ -279,7 +279,7 @@ def laplacian_then_bilateral_opc_cuda(opc, loops_laplacian=5, _lambda=1.0, kerne
 #     timings = dict(laplacian=time_elapsed_laplacian, mesh=time_elapsed_mesh)
 #     return tri_mesh, tri_mesh_o3d, timings
 
-def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2):
+def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2, calc_normals=True):
     """Create Mesh from organized point cloud
     If an MXNX3 Point Cloud is passed, rows and cols is ignored (we know the row/col from shape)
     If an KX3 Point Cloud is passed, you must pass the row, cols, and stride that correspond to the point cloud
@@ -304,7 +304,7 @@ def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2):
 
     pcd_mat = MatrixDouble(pcd_, copy=True)
     t1 = time.perf_counter()
-    tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride)
+    tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride, calc_normals=calc_normals)
     t2 = time.perf_counter()
     time_elapsed = (t2 - t1) * 1000
     return tri_mesh, time_elapsed
@@ -373,7 +373,7 @@ def create_meshes_cuda(opc, **kwargs):
         [tuple(mesh, o3d_mesh)] -- polylidar mesh and o3d mesh reperesentation
     """
     smooth_opc, opc_normals, timings = laplacian_then_bilateral_opc_cuda(opc, **kwargs)
-    tri_mesh, time_elapsed_mesh = create_mesh_from_organized_point_cloud(smooth_opc)
+    tri_mesh, time_elapsed_mesh = create_mesh_from_organized_point_cloud(smooth_opc, calc_normals=False)
     opc_normals_cp = MatrixDouble(opc_normals, copy=True) # copy here
     # plot_triangle_normals(np.asarray(tri_mesh.triangle_normals), opc_normals)
     tri_mesh.set_triangle_normals(opc_normals_cp) # copy again here....sad
