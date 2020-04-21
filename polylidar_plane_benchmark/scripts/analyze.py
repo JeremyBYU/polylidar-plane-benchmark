@@ -8,7 +8,9 @@ import numpy as np
 import pandas as pd
 
 
-from polylidar_plane_benchmark import TRAIN_RESULTS_DIR
+from polylidar_plane_benchmark import TRAIN_RESULTS_DIR, SYNPEB_ALL_FNAMES, SYNPEB_DIR_TRAIN_ALL
+
+from polylidar_plane_benchmark.utility.helper import estimate_pc_noise, load_pcd_file
 
 sns.set()
 
@@ -18,6 +20,34 @@ def analyze():
     """Analyze Data"""
     pass
 
+
+def plot_graph(df, title='', directory=Path('/tmp')):
+    g = sns.relplot(data=df, x='loops_laplacian', y='f_corr_seg', row='loops_bilateral', col='min_triangles',
+                    hue='sigma_angle', style='kernel_size')
+
+    fig = g.fig
+    fig.suptitle(title, fontsize=14)
+    fig.subplots_adjust(top=0.95, wspace=0.2, hspace=0.2)
+    fpath = directory / "images/{}.pdf".format(title)
+    fig.savefig(str(fpath), bbox_inches='tight')
+
+    df_sorted = df.sort_values(by=['f_corr_seg'], ascending=False)
+    print(df_sorted.head(n=5))
+
+    plt.show()
+
+    best_f_corr_seg = df_sorted.iloc[0, :].values[-1]
+
+    return best_f_corr_seg
+
+def estimate_pc_noise_files(fpaths, stride=1, variance=1, samples=100, sample_size=2,**kwargs):
+    noise_records = []
+    for fpath in fpaths:
+        pc_raw, pc_image = load_pcd_file(fpath, stride)
+        noise = estimate_pc_noise(pc_image, samples=samples, sample_size=sample_size)
+        fname = Path(fpath).name
+        noise_records.append(dict(noise=noise, samples=samples, stride=stride, sample_size=sample_size, variance=variance, fname=fname))
+    return noise_records
 
 def create_dataframe_from_file_list(all_files: List[Path]):
     df: pd.DataFrame = pd.read_csv(all_files[0], delimiter=',')
@@ -48,9 +78,105 @@ def get_df_by_variance(all_files: List[Path],
     return all_dfs
 
 
+def get_all_training_fpaths(variance:int=1):
+    all_fnames = SYNPEB_ALL_FNAMES
+    all_fnames = all_fnames[0:10]
+    all_fpaths = []
+
+    base_dir = SYNPEB_DIR_TRAIN_ALL[int(variance) - 1]
+
+    for fname in all_fnames:
+        fpath = str(base_dir / fname)
+        all_fpaths.append(fpath)
+    return all_fpaths
+
+
+@analyze.command()
+def pcd_noise():
+    """Visualize noise level estimation in point cloud files"""
+    all_fnames = SYNPEB_ALL_FNAMES
+    all_fnames = all_fnames[0:10]
+
+    all_records = []
+    for variance in range(1, 5):
+        base_dir = SYNPEB_DIR_TRAIN_ALL[int(variance) - 1]
+        all_fpaths = []
+        for fname in all_fnames:
+            fpath = str(base_dir / fname)
+            all_fpaths.append(fpath)
+        for samples in [25, 100, 1000]:
+            for sample_size in [2]:
+                for stride in [1, 2]:
+                    records = estimate_pc_noise_files(all_fpaths, stride=stride,
+                                                      variance=variance, samples=samples, sample_size=sample_size)
+                    all_records.extend(records)
+
+    df = pd.DataFrame.from_records(all_records)
+
+    g = sns.catplot(x="variance", y="noise", col='samples', row='stride', data=df, kind='violin')
+    plt.show()
+
+
+@analyze.command()
+@click.option('-d', '--directory', type=click.Path(exists=True), default=TRAIN_RESULTS_DIR)
+def fit_laplacian(directory):
+    """ Analyze noise in point clouds and determine a *sufficient* number of laplacian iterations to smooth
+    """
+    # Create Noise Dataframe
+    all_noise_records = []
+    for variance in range(1, 5):
+        all_fpaths = get_all_training_fpaths(variance)
+        pc_noise_records = estimate_pc_noise_files(all_fpaths, stride=1, variance=variance, samples=100, sample_size=2)
+        all_noise_records.extend(pc_noise_records)
+    df_noise = pd.DataFrame.from_records(all_noise_records)[['fname', 'variance', 'noise']]
+
+    # Create dataframe of all training data, reduce data to whats of interest
+    files: List[Path] = [e for e in directory.iterdir() if e.is_file() and '.csv' in e.suffix and not 'test' in e.name]
+    all_dfs = create_dataframe_from_file_list(files)
+    columns = ['fname', 'variance', 'f_corr_seg', 'kernel_size', 'loops_bilateral',
+               'loops_laplacian', 'sigma_angle', 'min_triangles', 'norm_thresh_min']
+    all_dfs = all_dfs[columns]
+    bp = dict(loops_bilateral=2, kernel_size=5, sigma_angle=0.1, min_triangles=1000, norm_thresh_min=0.95)
+    df = all_dfs[(all_dfs.loops_bilateral == bp['loops_bilateral']) &
+                 (all_dfs.kernel_size == bp['kernel_size']) &
+                 (all_dfs.sigma_angle == bp['sigma_angle']) &
+                 (all_dfs.min_triangles == bp['min_triangles']) &
+                 (all_dfs.norm_thresh_min == bp['norm_thresh_min'])]
+    df = df.reset_index()
+
+    # merge the dataframe, now we know the predicted point cloud noise value with all the training data
+    combined_df = pd.merge(df, df_noise,  how='left', left_on=['fname','variance'], right_on = ['fname','variance'])
+    combined_df = combined_df.sort_values(by=['variance', 'fname']) 
+
+    # plot the data, see what would be good partition points
+    g = sns.relplot(x="noise", y="f_corr_seg", hue="variance", col='loops_laplacian', data=combined_df)
+    plt.show()
+
+    # Simple split
+    print("Splitting at .0002, .0004, .0006, and greater to 2, 4, 6, and 8 Laplacian iterations")
+    splits = np.array([.0002, .0004, .0006])
+    loops_laplacian = [2, 4, 6, 8]
+    correct_records = []
+    for index, row in combined_df.iterrows():
+        idx = np.searchsorted(splits, row.noise)
+        predicted_loops = loops_laplacian[idx]
+        data_loops = row.loops_laplacian
+        # check if this is the row we want to keep
+        if predicted_loops == data_loops:
+            correct_records.append(row)
+
+    # Show results of predcition
+    df_predicted = pd.DataFrame(correct_records)
+    print(df_predicted.mean())
+
+    g = sns.relplot(x="noise", y="f_corr_seg", hue="variance", col='loops_laplacian', data=df_predicted)
+    plt.show()
+
+
 @analyze.command()
 @click.option('-d', '--directory', type=click.Path(exists=True), default=TRAIN_RESULTS_DIR)
 def test(directory: Path):
+    """ Show results of Polylidar on dataset """
     files: List[Path] = [e for e in directory.iterdir() if e.is_file() and '.csv' in e.suffix and 'test' in e.name]
     df = create_dataframe_from_file_list(files)
     columns_metrics = ['n_gt', 'n_ms_all', 'f_weighted_corr_seg',
@@ -61,48 +187,18 @@ def test(directory: Path):
     df_mean = df.groupby('variance').mean()
     print(df_mean)
     print(df[columns_metrics].mean())
-
-# Rows - loops_bilateral
-# Cols - min_total_weight
-# X Axis - loops_laplacian
-# Y Axis - f_corr_seg
-# Z Axis - BLANK
-# Hue - sigma_angle
-# Style - kernel_size
-# Size - N/A
-# missing norm_thresh_min
-# missing min_total_weight
-
-# Notes, norm_thresh_min = 0.95 is always better on mean
+    # TODO print out latex table?
 
 
-def plot_graph(df, title='', directory=Path('/tmp')):
-    g = sns.relplot(data=df, x='loops_laplacian', y='f_corr_seg', row='loops_bilateral', col='min_triangles',
-                    hue='sigma_angle', style='kernel_size')
-
-    fig = g.fig
-    fig.suptitle(title, fontsize=14)
-    fig.subplots_adjust(top=0.95, wspace=0.2, hspace=0.2)
-    fpath = directory / "images/{}.pdf".format(title)
-    fig.savefig(str(fpath), bbox_inches='tight')
-
-    df_sorted = df.sort_values(by=['f_corr_seg'], ascending=False)
-    print(df_sorted.head(n=5))
-
-    plt.show()
-
-    best_f_corr_seg = df_sorted.iloc[0, :].values[-1]
-
-    return best_f_corr_seg
 
 
 @analyze.command()
 @click.option('-d', '--directory', type=click.Path(exists=True), default=TRAIN_RESULTS_DIR)
 def training(directory: Path):
+    """ Show results of hyperparameters for polylidar """
     files: List[Path] = [e for e in directory.iterdir() if e.is_file() and '.csv' in e.suffix and not 'test' in e.name]
     all_dfs = get_df_by_variance(files)
 
-    # import ipdb; ipdb.set_trace()
     all_best_values = []
     all_best_values.append(plot_graph(all_dfs[0], title='Variance = 1', directory=directory))
     all_best_values.append(plot_graph(all_dfs[1], title='Variance = 2', directory=directory))
@@ -146,3 +242,31 @@ def training(directory: Path):
 # 194            5                4                6          0.2           1000             0.95    0.442676
 # 158            5                1                8          0.2           1000             0.95    0.439245
 # Mean of all variances of best hyperparameters: 0.52
+# I just do 2,4,6,8 laplacian loops based upon variance I get 0.51. This is what I chose to do first
+# afterward a fit a model of point cloud noise to amount of smoothing needed
+
+
+# Test Results, stride = 1
+#           index       n_gt   n_ms_all  f_weighted_corr_seg  f_corr_seg  n_corr_seg  n_over_seg  n_under_seg  n_missed_seg  n_noise_seg  laplacian  bilateral      mesh  fastga_total  polylidar
+# variance                                                                                                                                                                                       
+# 1          74.5  42.433333  24.700000             0.798318    0.528498   20.200000    0.166667     0.433333     21.133333     3.733333   1.101684   3.274795  9.003584      6.450586  13.558273
+# 2          44.5  42.600000  24.200000             0.732586    0.453687   18.333333    0.166667     0.366667     23.300000     5.166667   1.102073   3.319611  9.156282      6.606149  14.205313
+# 3         104.5  42.333333  25.500000             0.757537    0.457345   17.733333    0.266667     0.333333     23.600000     6.833333   1.223209   3.251596  9.320403      6.555388  13.788202
+# 4          14.5  42.600000  26.866667             0.751720    0.442893   17.033333    0.466667     0.466667     24.033333     8.433333   1.435756   3.276963  8.796821      6.503823  13.206990
+# n_gt                   42.491667
+# n_ms_all               25.316667
+# f_weighted_corr_seg     0.760040
+# f_corr_seg              0.470606
+# n_corr_seg             18.325000
+# n_over_seg              0.266667
+# n_under_seg             0.400000
+# n_missed_seg           23.016667
+# n_noise_seg             6.041667
+# laplacian               1.215680
+# bilateral               3.280741
+# mesh                    9.069273
+# fastga_total            6.528987
+# polylidar              13.689695
+# dtype: float64
+
+

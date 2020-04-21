@@ -1,7 +1,9 @@
 import random
 import time
 import warnings
+import math
 import gc
+import pathlib
 warnings.filterwarnings("ignore", message="Optimal rotation is not uniquely or poorly defined ")
 
 import numpy as np
@@ -34,6 +36,84 @@ from polylidar_plane_benchmark.utility.geometry import convert_to_shapely_geomet
 # Set the random seeds for determinism
 random.seed(0)
 np.random.seed(0)
+
+splits_stride_1 = np.array([.0002, .0004, .0006])
+loops_laplacian_stride_1 = [2, 4, 6, 8]
+
+def predict_loops_laplacian(pc_image, stride=1, samples=100, sample_size=2):
+    """Very simple model that estimates point cloud noise and predicts the number of laplacian smoothing iterations needed
+    
+    Arguments:
+        pc_image {ndarray} -- Organized Point Cloud
+    
+    Keyword Arguments:
+        stride {int} -- How much did you downsample the image (default: {1})
+        samples {int} -- How many samples to estimate the point cloud noise (default: {100})
+        sample_size {int} -- How big should each sample by (2X2 section) (default: {2})
+    """
+    assert stride == 1, "Can only handle stride == 1; eg. full poiint cloud"
+    if stride == 1:
+        splits = splits_stride_1
+        loops = loops_laplacian_stride_1
+    else:
+        pass
+    noise = estimate_pc_noise(pc_image, samples=samples, sample_size=sample_size)
+    idx = np.searchsorted(splits, noise)
+    predicted_loops = loops[idx]
+    return predicted_loops
+
+def estimate_pc_noise(pc_image, samples=100, sample_size=2):
+    """Estimates point cloud noise by sampling
+    Looks at a sample_size X sample_size window and computes the cross covariance
+    100 samples are taken uniformly from the organized point cloud
+    
+    Arguments:
+        pc_image {[type]} -- [description]
+    
+    Keyword Arguments:
+        samples {int} -- [description] (default: {100})
+        sample_size {int} -- [description] (default: {2})
+    
+    Returns:
+        [float] -- noise
+    """
+    rows = pc_image.shape[0] - sample_size * 2
+    cols = pc_image.shape[1] - sample_size * 2
+
+    row_skip = int(rows / math.sqrt(samples))
+    col_skip = int(cols / math.sqrt(samples))
+
+    pc_size = sample_size * sample_size
+
+    t1 = time.perf_counter()
+    matrix_list = []
+    for row in range(sample_size, rows, row_skip):
+        for col in range(sample_size, cols, col_skip):
+            pc_sampled = np.ascontiguousarray(pc_image[row:row + sample_size, col:col + sample_size, :3].reshape((pc_size, 3)).T)
+            matrix_list.append(pc_sampled)
+
+    t2 = time.perf_counter()
+
+    elapsed_time = (t2 - t1) * 1000
+    logger.debug("Noise Estimation - Gathering data took (ms): %.3f ", elapsed_time)
+    
+    noise = np.zeros(shape=(len(matrix_list),))
+    for i, pc_matrix in enumerate(matrix_list):
+        # t3 = time.perf_counter_ns()
+        pc_matrix_normalized = pc_matrix - np.mean(pc_matrix, axis=1)[:, None]
+        # t4 = time.perf_counter_ns()
+        pseudo_noise = pc_matrix_normalized @ pc_matrix_normalized.T
+        # t5 = time.perf_counter_ns()
+        noise[i] = np.sum(pseudo_noise)
+        # t6= time.perf_counter_ns()
+        # logger.info("normalized : %1f, Matrix mult: %.1f, sum: %.1f ", (t4 - t3), (t5-t4), (t6-t5))
+    t3 = time.perf_counter()
+    median_noise = np.median(noise)
+    elapsed_time = (t3 - t2) * 1000
+    logger.debug("Noise Estimation - Cross Covariance Took (ms): %.3f ", elapsed_time)
+
+    return median_noise
+
 
 
 def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilateral=0, kernel_size=3, **kwargs):
@@ -220,10 +300,10 @@ def get_image_peaks(ico_chart, ga, level=2, with_o3d=True,
     return avg_peaks, pcd_all_peaks, arrow_avg_peaks, timings
 
 
-def down_sample_normals(triangle_normals, ds=8, min_samples=10000, flip_normals=False, **kwargs):
+def down_sample_normals(triangle_normals, down_sample_fraction=0.12, min_samples=10000, flip_normals=False, **kwargs):
     num_normals = triangle_normals.shape[0]
-    ds_normals = int(num_normals / ds)
-    to_sample = max(min([num_normals, min_samples]), ds_normals)
+    to_sample = int(down_sample_fraction * num_normals)
+    to_sample = max(min([num_normals, min_samples]), to_sample)
     ds_step = int(num_normals / to_sample)
     triangle_normals_ds = np.ascontiguousarray(triangle_normals[:num_normals:ds_step, :])
     if flip_normals:

@@ -75,7 +75,7 @@ def evaluate_with_params(param_set, param_index, variance, counter=None, data='t
         data {str} -- To pull from training or testing (default: {'train'})
     """
     from polylidar_plane_benchmark.utility.helper import (
-        convert_planes_to_classified_point_cloud, load_pcd_file,
+        convert_planes_to_classified_point_cloud, load_pcd_file, predict_loops_laplacian,
         extract_all_dominant_plane_normals, extract_planes_and_polygons_from_mesh)
     from polylidar_plane_benchmark.utility.evaluate import evaluate
     from polylidar_plane_benchmark.utility.helper_mesh import create_meshes_cuda
@@ -96,8 +96,8 @@ def evaluate_with_params(param_set, param_index, variance, counter=None, data='t
     with open(csv_fpath, 'w', newline='') as csv_file:
         fieldnames = ['variance', 'fname', 'tcomp',
                       'kernel_size', 'loops_bilateral', 'loops_laplacian', 'sigma_angle',
-                      'norm_thresh_min', 'stride', 'min_triangles', 'n_gt',
-                      'n_ms_all', 'f_weighted_corr_seg', 'f_corr_seg', 'n_corr_seg',
+                      'norm_thresh_min', 'stride', 'min_triangles', 'predict_loops_laplacian',
+                      'n_gt', 'n_ms_all', 'f_weighted_corr_seg', 'f_corr_seg', 'n_corr_seg',
                       'n_over_seg', 'n_under_seg', 'n_missed_seg', 'n_noise_seg',
                       'laplacian', 'bilateral', 'mesh', 'fastga_total', 'fastga_integrate',
                       'fastga_peak', 'polylidar']
@@ -122,6 +122,11 @@ def evaluate_with_params(param_set, param_index, variance, counter=None, data='t
                         prev_stride = stride
                     else:
                         logger_train.debug("Reusing previously loaded point cloud")
+
+                    # Predict laplacian loops needed by noisiness of point cloud
+                    if params.get('predict_loops_laplacian'):
+                        params['loops_laplacian'] = predict_loops_laplacian(pc_image, stride)
+                        logger_train.info("Set laplacian loops to :%r", params['loops_laplacian'])
 
                     # Update Polylidar Kwargs
                     pl.norm_thresh = params['norm_thresh_min']
@@ -193,7 +198,7 @@ def evaluate_with_params_visualize(params):
     """
 
     from polylidar_plane_benchmark.utility.helper import (
-        convert_planes_to_classified_point_cloud, load_pcd_file, paint_planes,
+        convert_planes_to_classified_point_cloud, load_pcd_file, paint_planes, predict_loops_laplacian,
         extract_all_dominant_plane_normals, extract_planes_and_polygons_from_mesh)
     from polylidar_plane_benchmark.utility.evaluate import evaluate, evaluate_incorrect
     from polylidar_plane_benchmark.utility.helper_mesh import create_meshes_cuda
@@ -227,6 +232,11 @@ def evaluate_with_params_visualize(params):
     pl.norm_thresh = params['norm_thresh_min']
     pl.norm_thresh_min = params['norm_thresh_min']
     pl.min_triangles = params.get('min_triangles', 250)
+
+    # Predict laplacian loops needed by noisiness of point cloud
+    if params.get('predict_loops_laplacian'):
+        params['loops_laplacian'] = predict_loops_laplacian(pc_image, stride)
+        logger_train.info("Set laplacian loops to :%r", params['loops_laplacian'])
 
     t1 = time.perf_counter()
     mesh_kwargs = {k: params[k]

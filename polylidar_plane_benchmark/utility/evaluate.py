@@ -2,16 +2,19 @@ import logging
 import numpy as np
 
 logger = logging.getLogger('PPB')
+# Any ground truth label < SYNPEB_VALID_INDICES is removed from ground truth set
+# This number comes from SYNPEB evaluation source code (I believe it matches segcomp as well)
 # I have verified that SYNPEB ground truth labels less than 10 are noise/spurious
 SYNPEB_VALID_INDICES = 10
-# Note - I also noticed that some files will have **more** ground truth labels
+# NOTE - I also noticed that some files will have **more** ground truth labels
 #       between different variances (same point cloud scene). Example synpeb/test/var1/pc_05.pcd vs. synpeb/test/var2/pc_05.pcd
 #       Ground truth label 61 is missing in **var1**
-#       I dont know why this is the case
+#       I don't know why this is the case. It doesn't really effect evaluation
 
-np.set_printoptions(threshold=3600, linewidth=350, precision=2, suppress=True)
+np.set_printoptions(threshold=3600, linewidth=350, precision=6, suppress=True)
 
 
+# NOTE - Do not use this function, use `evaluate` below. Left for posterity
 def evaluate_incorrect(gt_image, planes_ms, tcomp=0.80, misc=''):
     """Reports evaluation metrics of ground truth vs machine segmented planes
     The key metrics are
@@ -218,9 +221,9 @@ def evaluate(gt_image, planes_ms, tcomp=0.80, misc=''):
     This function differs from evalute_incorrect by using the correct definition of "average of its
     metric pair" (An Experimental Comparision of Range Image Segmentation Algorithms,  Hoover Et Al,
     Section 2.4 Performance Metrics, pg 677, Second to Last Paragraph )
-    Basically we take the average of one measure (e.g. defintion 2(a)) the average of another (e.g. 2(b)) 
+    Basically we take the average of one measure (e.g. defintion 2(a)) the average of the second measure (e.g. 2(b)) 
     and then average this metric pair together. This differs from `evaluate_incorrect` above
-    which lumps all the results of all measures together and then averages (line 124 and 129 above).
+    which lumps all the results of all measures together and then averages (line 135 and 136 above).
     This interpretation of "average of its  metric pair" is taken from `compare.c` in C code evaluation 
     tool released by Hoover. (Line 403 and 404).
     
@@ -247,7 +250,7 @@ def evaluate(gt_image, planes_ms, tcomp=0.80, misc=''):
 
     # This is a list of tuples, each tuple having a numpy array and a integer label id.
     # Each numpy array represents a unique plane and is a set of point INDICES
-    # This list only accepts ground truth planes whose label greater than 10
+    # This list only accepts ground truth planes whose label is greater than 10
     # https://github.com/acschaefer/ppe/blob/8804bba91debd1917188b509246b64b5e1401d87/matlab/experiments/segcompeval.m#L16
     gt_planes_filtered = [(np.flatnonzero(gt_pixel_labels == gt_unique_label), gt_unique_label) for gt_unique_label in
                           gt_unique_labels if gt_unique_label >= SYNPEB_VALID_INDICES]
@@ -412,7 +415,8 @@ def evaluate(gt_image, planes_ms, tcomp=0.80, misc=''):
     n_noise_seg = np.asscalar(np.sum(noise_seg))
 
     f_corr_seg = n_corr_seg / n_gt
-    total_points_correct_gt = np.sum(correct_seg_final, axis=1) * point_count_gt 
+    total_points_correct_gt = np.sum(correct_seg_final, axis=1) * point_count_gt
+    # this is k in PPE paper
     f_weighted_corr_seg = np.sum(total_points_correct_gt) / np.sum(point_count_gt)
 
 

@@ -7,6 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
 import colorcet as cc
+import pandas as pd
+import seaborn as sns
 
 from polylidar_plane_benchmark import (DEFAULT_PPB_FILE, DEFAULT_PPB_FILE_SECONDARY, logger, SYNPEB_ALL_FNAMES, SYNPEB_DIR, SYNPEB_MESHES_DIR,
                                        SYNPEB_DIR_TEST_GT, SYNPEB_DIR_TRAIN_GT, SYNPEB_DIR_TEST_ALL, SYNPEB_DIR_TRAIN_ALL)
@@ -31,10 +33,7 @@ def visualize():
 @visualize.command()
 @click.option('-i', '--input-file', type=click.Path(exists=True), default=DEFAULT_PPB_FILE)
 @click.option('-s', '--stride', type=int, default=2)
-@click.option('-l', '--loops', type=int, default=5)
-@click.option('--llambda', type=float, default=1.0)
-@click.option('-lb', '--loops-bilateral', type=int, default=0)
-def pcd(input_file: str, stride, loops, llambda, loops_bilateral):
+def pcd(input_file: str, stride):
     """Visualize PCD File"""
     pc_raw, pc_image = load_pcd_file(input_file, stride)
 

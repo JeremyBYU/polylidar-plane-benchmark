@@ -13,7 +13,7 @@ COLOR_PALETTE = list(map(colors.to_rgb, plt.rcParams['axes.prop_cycle'].by_key()
 def flatten(l): return [item for sublist in l for item in sublist]
 
 
-def create_octahedron_in_center_of_point_set(point_set, color=[1, 0, 0], radius=0.05):
+def create_octahedron_in_center_of_point_set(point_set, color=[1, 0, 0], radius=0.02):
     mean_point = np.ascontiguousarray(np.mean(point_set, axis=0)[:3])
     mesh_octo = o3d.geometry.TriangleMesh.create_octahedron(radius=radius)
     mesh_octo = mesh_octo.translate(mean_point)
