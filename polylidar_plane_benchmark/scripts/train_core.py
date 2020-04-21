@@ -1,3 +1,11 @@
+""" This module contains the function to more efficiently evaluate Polylidar on bulk datasets (SynPEB)
+
+evaluate_with_params - Evaluates polylidar against a set of parameters and writes results to a csv file
+
+evaluate_with_params_visualize - Similar to above but just for one set of parameters. Used for debugging and visualization
+"""
+
+
 import logging
 import pprint
 import pathlib
@@ -11,7 +19,7 @@ from polylidar_plane_benchmark import (DEFAULT_PPB_FILE, DEFAULT_PPB_FILE_SECOND
                                        SYNPEB_DIR_TEST_GT, SYNPEB_DIR_TRAIN_GT, SYNPEB_DIR_TEST_ALL, SYNPEB_DIR_TRAIN_ALL)
 
 
-# Disable PPB Logger
+# Enable PPB Logger
 logger = logging.getLogger("PPB")
 logger.setLevel(logging.WARN)
 
@@ -55,6 +63,17 @@ def get_csv_fpath(variance=1, param_index=0, data='train'):
 
 
 def evaluate_with_params(param_set, param_index, variance, counter=None, data='train'):
+    """Evaluates polylidar against a set of parameters and writes results to a csv file
+
+    Arguments:
+        param_set {List[Dict]} -- A list of parameters dictionaries
+        param_index {int} -- A unique index of the param_set if it was split from a master list
+        variance {int} -- The level of variance of files to pull from SynPEB
+
+    Keyword Arguments:
+        counter {Value} -- Multiprocessing Value for incementing progress in safe manner (default: {None})
+        data {str} -- To pull from training or testing (default: {'train'})
+    """
     from polylidar_plane_benchmark.utility.helper import (
         convert_planes_to_classified_point_cloud, load_pcd_file,
         extract_all_dominant_plane_normals, extract_planes_and_polygons_from_mesh)
@@ -126,7 +145,8 @@ def evaluate_with_params(param_set, param_index, variance, counter=None, data='t
                         all_planes, all_polygons, all_poly_lines, polylidar_timings = extract_planes_and_polygons_from_mesh(
                             tri_mesh, avg_peaks, filter_polygons=False, pl_=pl, optimized=False)
                     except Exception:
-                        logger_train.exception("Error in Polylidar, File: %s, Variance: %d, Param Index: %d, Params: %r", fname, variance, param_index, params)
+                        logger_train.exception(
+                            "Error in Polylidar, File: %s, Variance: %d, Param Index: %d, Params: %r", fname, variance, param_index, params)
                         all_planes = []
                         all_polygons = []
                         all_poly_lines = []
@@ -165,6 +185,11 @@ def evaluate_with_params(param_set, param_index, variance, counter=None, data='t
 
 
 def evaluate_with_params_visualize(params):
+    """Similar to above but just for one set of parameters. Used for debugging and visualization
+
+    Arguments:
+        params {dict} -- Dict of hyperparameters
+    """
 
     from polylidar_plane_benchmark.utility.helper import (
         convert_planes_to_classified_point_cloud, load_pcd_file, paint_planes,
@@ -178,7 +203,6 @@ def evaluate_with_params_visualize(params):
     import open3d as o3d
 
     logger.setLevel(logging.INFO)
-    # from polylidar_plane_benchmark.utility.helper_mesh import lo
     variance = params['variance']
     all_fpaths = get_fpaths(params['variance'])
     fpaths = [fpath for fpath in all_fpaths if params['fname'] in fpath]

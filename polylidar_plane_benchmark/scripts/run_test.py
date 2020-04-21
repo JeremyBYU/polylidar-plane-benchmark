@@ -1,3 +1,18 @@
+""" This script is used to run tuned hyperparameters on the SynPEB Dataset
+Hyperparameters from training were very stable between variance groups. Basically only
+Mesh smoothing needs to be changed. 
+
+Note - Polylidar generates *planes* and *polygon*
+    Planes are a sets of spatially connected triangles of similar normals
+    Polygons are the concave hull and possible interior holes of said planes
+
+SynPEB (and other benchmarks) are **point** based for planes, not polygon based.
+For this reason we use the planes returned from polylidar for benchmark evaluation.
+This cooresponds to the point indices of the triangles in each plane 
+
+A stride=1 is used for testing, meaning **all** the data (500X500) is used for prediction and evaluation
+
+"""
 from polylidar_plane_benchmark.scripts.train_core import evaluate_with_params
 
 

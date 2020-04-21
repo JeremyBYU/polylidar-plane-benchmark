@@ -1,3 +1,26 @@
+""" This script is used to tune hyperparameters used in Polylidar on SynPeb TRAINING dataset
+Note - Most of the hyperparameters that are included/important are actually apart of OrganizedPointFilters (OPF)
+OPF is a library I made for fast mesh smoothing form organized point clouds
+
+In total there are three libraries used for the SynPEB Benchmark
+1. Organized Point Filters (OPF) - Smoothing Mesh
+2. Fast Gaussian Accumulator (FastGA) - Fast Plane Normal Detection
+3. Polylidar - Fast Plane and Polygon Extraction
+
+Note - Polylidar generates *planes* and *polygon*
+    Planes are a sets of spatially connected triangles of similar normals
+    Polygons are the concave hull and possible interior holes of said planes
+
+SynPEB (and other benchmarks) are **point** based for planes, not polygon based.
+For this reason we use the planes returned from polylidar for benchmark evaluation.
+This cooresponds to the point indices of the triangles in each plane 
+
+
+Question - Why did you make this a python script and not use `Click` for the CLI as you did for `visualize`
+Answer - I was paranoid about python `imports` (especially cuda) during process `fork` for multiprocessing
+         This script is self isolated and **nothing** is imported until *inside* the launching subprocess
+
+"""
 from multiprocessing import Pool, Value, Process
 import signal
 import time
@@ -10,22 +33,6 @@ import itertools
 from polylidar_plane_benchmark.scripts.train_core import evaluate_with_params
 
 
-
-    # mesh_param_grid = dict(
-    #     loops_laplacian=[1, 2, 4, 6, 8],
-    #     kernel_size=[3, 5],
-    #     loops_bilateral=[0, 1, 2, 4, 6, 8],
-    #     sigma_angle=[0.10, 0.20],
-    # )
-    # all_else_grid = dict(
-    #     # Fast GA Peak Identification
-    #     threshold_abs=[2, 4],
-    #     min_total_weight=[0.01, 0.02],
-
-    #     # Polylidar
-    #     norm_thresh_min=[0.95, .96],
-    # )
-
 def get_permutations():
     mesh_param_grid = dict(
         loops_laplacian=[1, 2, 4, 6, 8],
@@ -34,8 +41,6 @@ def get_permutations():
         sigma_angle=[0.10, 0.20],
     )
     all_else_grid = dict(
-        # Fast GA Peak Identification
-
         # Polylidar
         norm_thresh_min=[0.95],
         min_triangles=[1000, 2000],
@@ -75,8 +80,8 @@ def main():
 
     counter = Value('i', 0)
 
-    param_split = 2
-    num_variances = 4
+    param_split = 2 # Split the parameters to increase parallelism
+    num_variances = 4 # Separate work by variance to increase parallelism
     num_files = 10
     total_iterations = len(params) * num_files * num_variances
 
@@ -84,6 +89,7 @@ def main():
     params_subset = [params[i:i + step_size] for i in range(0, len(params), step_size)]
     assert len(params_subset) == param_split
 
+    # Will contain the set of function arguments to pass to each process (parallel)
     function_args = []
     for i in range(num_variances):
         variance = i + 1
@@ -101,7 +107,7 @@ def main():
         for p in procs:
             p.join()
         print("Finished All Processes")
-        for i,p in enumerate(procs):
+        for i, p in enumerate(procs):
             print("Process {} returned {}".format(i, p.exitcode))
         progress.join()
     except KeyboardInterrupt:

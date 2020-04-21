@@ -12,6 +12,7 @@ from polylidar_plane_benchmark import TRAIN_RESULTS_DIR
 
 sns.set()
 
+
 @click.group()
 def analyze():
     """Analyze Data"""
@@ -27,21 +28,40 @@ def create_dataframe_from_file_list(all_files: List[Path]):
     return df
 
 
-def get_df_by_variance(all_files: List[Path]):
+def get_df_by_variance(all_files: List[Path],
+                       columns=['fname', 'f_corr_seg', 'kernel_size', 'loops_bilateral',
+                                'loops_laplacian', 'sigma_angle', 'min_triangles', 'norm_thresh_min'],
+                       groupby=True):
     df = create_dataframe_from_file_list(all_files)
-    columns = ['fname', 'f_corr_seg', 'kernel_size', 'loops_bilateral',
-               'loops_laplacian', 'sigma_angle', 'min_triangles', 'norm_thresh_min']
+
     all_dfs = []
     df_new = df[(df.tcomp == 0.8)]
     for i in range(1, 5):
         df_var1 = df_new[(df_new.variance == i)]
         df_reduced = df_var1[columns]
-        df_mean = df_reduced.groupby(columns[2:]).mean()
-        # import ipdb; ipdb.set_trace()
-        df_mean = df_mean.reset_index()
-        # print(df_mean)
+        if groupby:
+            df_mean = df_reduced.groupby(columns[2:]).mean()
+            df_mean = df_mean.reset_index()
+        else:
+            df_mean = df_reduced.reset_index()
         all_dfs.append(df_mean)
     return all_dfs
+
+
+@analyze.command()
+@click.option('-d', '--directory', type=click.Path(exists=True), default=TRAIN_RESULTS_DIR)
+def test(directory: Path):
+    files: List[Path] = [e for e in directory.iterdir() if e.is_file() and '.csv' in e.suffix and 'test' in e.name]
+    df = create_dataframe_from_file_list(files)
+
+    columns = ['variance', 'fname',
+               'n_gt', 'n_ms_all', 'f_weighted_corr_seg',
+               'f_corr_seg', 'n_corr_seg', 'n_over_seg', 'n_under_seg', 'n_missed_seg',
+               'n_noise_seg', 'laplacian', 'bilateral', 'mesh', 'fastga_total', 'polylidar']
+    df = df[columns].reset_index()
+    df_mean = df.groupby('variance').mean()
+    print(df_mean)
+    # print("Mean of all variances of best hyperparameters: {:.2f}".format(mean_value))
 
 # Rows - loops_bilateral
 # Cols - min_total_weight
@@ -80,7 +100,7 @@ def plot_graph(df, title='', directory=Path('/tmp')):
 @analyze.command()
 @click.option('-d', '--directory', type=click.Path(exists=True), default=TRAIN_RESULTS_DIR)
 def training(directory: Path):
-    files: List[Path] = [e for e in directory.iterdir() if e.is_file() and '.csv' in e.suffix]
+    files: List[Path] = [e for e in directory.iterdir() if e.is_file() and '.csv' in e.suffix and not 'test' in e.name]
     all_dfs = get_df_by_variance(files)
 
     # import ipdb; ipdb.set_trace()
@@ -127,5 +147,3 @@ def training(directory: Path):
 # 194            5                4                6          0.2           1000             0.95    0.442676
 # 158            5                1                8          0.2           1000             0.95    0.439245
 # Mean of all variances of best hyperparameters: 0.52
-
-
