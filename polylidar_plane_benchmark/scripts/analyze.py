@@ -53,15 +53,14 @@ def get_df_by_variance(all_files: List[Path],
 def test(directory: Path):
     files: List[Path] = [e for e in directory.iterdir() if e.is_file() and '.csv' in e.suffix and 'test' in e.name]
     df = create_dataframe_from_file_list(files)
-
-    columns = ['variance', 'fname',
-               'n_gt', 'n_ms_all', 'f_weighted_corr_seg',
-               'f_corr_seg', 'n_corr_seg', 'n_over_seg', 'n_under_seg', 'n_missed_seg',
-               'n_noise_seg', 'laplacian', 'bilateral', 'mesh', 'fastga_total', 'polylidar']
+    columns_metrics = ['n_gt', 'n_ms_all', 'f_weighted_corr_seg',
+                       'f_corr_seg', 'n_corr_seg', 'n_over_seg', 'n_under_seg', 'n_missed_seg',
+                       'n_noise_seg', 'laplacian', 'bilateral', 'mesh', 'fastga_total', 'polylidar']
+    columns = ['variance', 'fname'] + columns_metrics
     df = df[columns].reset_index()
     df_mean = df.groupby('variance').mean()
     print(df_mean)
-    # print("Mean of all variances of best hyperparameters: {:.2f}".format(mean_value))
+    print(df[columns_metrics].mean())
 
 # Rows - loops_bilateral
 # Cols - min_total_weight

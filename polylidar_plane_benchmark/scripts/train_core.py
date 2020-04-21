@@ -84,6 +84,7 @@ def evaluate_with_params(param_set, param_index, variance, counter=None, data='t
     from fastga import GaussianAccumulatorS2, IcoCharts
 
     all_fpaths = get_fpaths(variance, data=data)
+    optimized = data == 'test'
 
     # Create Long Lived Objects Only Once
     ga = GaussianAccumulatorS2(level=level_default)  # Fast Gaussian Accumulator
@@ -143,7 +144,7 @@ def evaluate_with_params(param_set, param_index, variance, counter=None, data='t
                     # Extact Planes and Polygons
                     try:
                         all_planes, all_polygons, all_poly_lines, polylidar_timings = extract_planes_and_polygons_from_mesh(
-                            tri_mesh, avg_peaks, filter_polygons=False, pl_=pl, optimized=False)
+                            tri_mesh, avg_peaks, filter_polygons=False, pl_=pl, optimized=optimized)
                     except Exception:
                         logger_train.exception(
                             "Error in Polylidar, File: %s, Variance: %d, Param Index: %d, Params: %r", fname, variance, param_index, params)

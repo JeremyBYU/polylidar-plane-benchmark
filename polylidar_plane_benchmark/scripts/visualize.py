@@ -66,6 +66,11 @@ def mesh(input_file: str, stride, loops, llambda, kernel_size, loops_bilateral):
     parent_dir.mkdir(parents=True, exist_ok=True)
     o3d.io.write_triangle_mesh(output_file, tri_mesh_o3d)
 
+    # import ipdb; ipdb.set_trace()
+    # mask = pc_raw[:, 3] == 3.0
+    # colors = np.asarray(pcd_raw.colors)
+    # colors[mask] = [0.0,1.0,0]
+
     plot_meshes([pcd_raw, tri_mesh_o3d])
 
 

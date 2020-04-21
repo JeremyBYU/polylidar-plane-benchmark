@@ -2,7 +2,12 @@ import logging
 import numpy as np
 
 logger = logging.getLogger('PPB')
+# I have verified that SYNPEB ground truth labels less than 10 are noise/spurious
 SYNPEB_VALID_INDICES = 10
+# Note - I also noticed that some files will have **more** ground truth labels
+#       between different variances (same point cloud scene). Example synpeb/test/var1/pc_05.pcd vs. synpeb/test/var2/pc_05.pcd
+#       Ground truth label 61 is missing in **var1**
+#       I dont know why this is the case
 
 np.set_printoptions(threshold=3600, linewidth=350, precision=2, suppress=True)
 
