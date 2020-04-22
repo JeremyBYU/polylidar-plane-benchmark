@@ -39,6 +39,8 @@ np.random.seed(0)
 
 splits_stride_1 = np.array([.0002, .0004, .0006])
 loops_laplacian_stride_1 = [2, 4, 6, 8]
+splits_stride_2 = np.array([.0002, .0003, .00045])
+loops_laplacian_stride_2 = [2, 4, 6, 8]
 
 def predict_loops_laplacian(pc_image, stride=1, samples=100, sample_size=2):
     """Very simple model that estimates point cloud noise and predicts the number of laplacian smoothing iterations needed
@@ -51,12 +53,13 @@ def predict_loops_laplacian(pc_image, stride=1, samples=100, sample_size=2):
         samples {int} -- How many samples to estimate the point cloud noise (default: {100})
         sample_size {int} -- How big should each sample by (2X2 section) (default: {2})
     """
-    assert stride == 1, "Can only handle stride == 1; eg. full poiint cloud"
+    assert stride < 3, "Can only handle stride == 1|2;"
     if stride == 1:
         splits = splits_stride_1
         loops = loops_laplacian_stride_1
     else:
-        pass
+        splits = splits_stride_2
+        loops = loops_laplacian_stride_2
     noise = estimate_pc_noise(pc_image, samples=samples, sample_size=sample_size)
     idx = np.searchsorted(splits, noise)
     predicted_loops = loops[idx]
@@ -151,7 +154,7 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 
 
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
-                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=1000,
+                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=250,
                                                                 z_thresh=0.1, norm_thresh=0.95, norm_thresh_min=0.95, min_hole_vertices=50, task_threads=4),
                                           filter_polygons=True, pl_=None, optimized=True):
 

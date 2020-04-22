@@ -38,14 +38,14 @@ def get_permutations():
         loops_laplacian=[1, 2, 4, 6, 8],
         kernel_size=[3, 5],
         loops_bilateral=[0, 1, 2, 4, 6, 8],
-        sigma_angle=[0.10, 0.20],
+        sigma_angle=[0.10],
     )
     all_else_grid = dict(
         # Polylidar
         norm_thresh_min=[0.95],
-        min_triangles=[1000, 2000],
+        min_triangles=[250, 500],
         # Downsampling
-        stride=[1]
+        stride=[2]
     )
     mesh_parameters = list(ParameterGrid(mesh_param_grid))
     else_parameters = list(ParameterGrid(all_else_grid))
@@ -76,8 +76,8 @@ def initializer():
 
 def main():
     params = get_permutations()
-    # params = params[:100]
 
+    # used for progress counter
     counter = Value('i', 0)
 
     param_split = 2 # Split the parameters to increase parallelism

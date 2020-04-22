@@ -15,10 +15,13 @@ A stride=1 is used for testing, meaning **all** the data (500X500) is used for p
 """
 from polylidar_plane_benchmark.scripts.train_core import evaluate_with_params
 
+# optimal params for stride=1
+# params = dict(kernel_size=5, loops_laplacian=2, loops_bilateral=2, sigma_angle=0.1,
+#                 min_triangles=1000, norm_thresh_min=0.95, stride=1, predict_loops_laplacian=True)
 
 def main():
-    params = dict(kernel_size=5, loops_laplacian=2, loops_bilateral=2, sigma_angle=0.1,
-                  min_triangles=1000, norm_thresh_min=0.95, stride=1, predict_loops_laplacian=True)
+    params = dict(kernel_size=3, loops_laplacian=2, loops_bilateral=1, sigma_angle=0.1,
+                  min_triangles=250, norm_thresh_min=0.95, stride=2, predict_loops_laplacian=True)
     dataset = 'test'
 
     evaluate_with_params([params], 0, 1, None, dataset)

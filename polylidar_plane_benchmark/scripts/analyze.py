@@ -22,8 +22,8 @@ def analyze():
 
 
 def plot_graph(df, title='', directory=Path('/tmp')):
-    g = sns.relplot(data=df, x='loops_laplacian', y='f_corr_seg', row='loops_bilateral', col='min_triangles',
-                    hue='sigma_angle', style='kernel_size')
+    g = sns.relplot(data=df, x='loops_laplacian', y='f_corr_seg', row='loops_bilateral',
+                    col='min_triangles', style='kernel_size')
 
     fig = g.fig
     fig.suptitle(title, fontsize=14)
@@ -105,7 +105,7 @@ def pcd_noise():
             fpath = str(base_dir / fname)
             all_fpaths.append(fpath)
         for samples in [25, 100, 1000]:
-            for sample_size in [2]:
+            for sample_size in [2, 3]:
                 for stride in [1, 2]:
                     records = estimate_pc_noise_files(all_fpaths, stride=stride,
                                                       variance=variance, samples=samples, sample_size=sample_size)
@@ -113,7 +113,7 @@ def pcd_noise():
 
     df = pd.DataFrame.from_records(all_records)
 
-    g = sns.catplot(x="variance", y="noise", col='samples', row='stride', data=df, kind='violin')
+    g = sns.catplot(x="variance", y="noise", col='samples', row='stride', hue='sample_size', data=df, kind='swarm')
     plt.show()
 
 
@@ -126,7 +126,7 @@ def fit_laplacian(directory):
     all_noise_records = []
     for variance in range(1, 5):
         all_fpaths = get_all_training_fpaths(variance)
-        pc_noise_records = estimate_pc_noise_files(all_fpaths, stride=1, variance=variance, samples=100, sample_size=2)
+        pc_noise_records = estimate_pc_noise_files(all_fpaths, stride=2, variance=variance, samples=100, sample_size=2)
         all_noise_records.extend(pc_noise_records)
     df_noise = pd.DataFrame.from_records(all_noise_records)[['fname', 'variance', 'noise']]
 
@@ -136,7 +136,7 @@ def fit_laplacian(directory):
     columns = ['fname', 'variance', 'f_corr_seg', 'kernel_size', 'loops_bilateral',
                'loops_laplacian', 'sigma_angle', 'min_triangles', 'norm_thresh_min']
     all_dfs = all_dfs[columns]
-    bp = dict(loops_bilateral=2, kernel_size=5, sigma_angle=0.1, min_triangles=1000, norm_thresh_min=0.95)
+    bp = dict(loops_bilateral=1, kernel_size=3, sigma_angle=0.1, min_triangles=250, norm_thresh_min=0.95)
     df = all_dfs[(all_dfs.loops_bilateral == bp['loops_bilateral']) &
                  (all_dfs.kernel_size == bp['kernel_size']) &
                  (all_dfs.sigma_angle == bp['sigma_angle']) &
@@ -154,7 +154,7 @@ def fit_laplacian(directory):
 
     # Simple split
     print("Splitting at .0002, .0004, .0006, and greater to 2, 4, 6, and 8 Laplacian iterations")
-    splits = np.array([.0002, .0004, .0006])
+    splits = np.array([.0002, .0003, .00045])
     loops_laplacian = [2, 4, 6, 8]
     correct_records = []
     for index, row in combined_df.iterrows():
@@ -268,5 +268,29 @@ def training(directory: Path):
 # fastga_total            6.528987
 # polylidar              13.689695
 # dtype: float64
+
+# Test Results, stride = 2
+#           index       n_gt   n_ms_all  f_weighted_corr_seg  f_corr_seg  n_corr_seg  n_over_seg  n_under_seg  n_missed_seg  n_noise_seg  laplacian  bilateral      mesh  fastga_total  polylidar
+# variance                                                                                                                                                                                       
+# 1          74.5  42.433333  23.833333             0.749470    0.420263   15.233333    0.833333     0.333333     25.633333     6.100000   0.519065   0.754139  1.574141      2.469488   3.474274
+# 2          44.5  42.600000  24.800000             0.732004    0.419430   15.500000    0.733333     0.333333     25.700000     7.333333   0.519379   0.712587  0.936739      2.514377   3.812655
+# 3         104.5  42.333333  26.566667             0.723124    0.400742   15.000000    0.866667     0.366667     25.700000     8.600000   0.483545   0.710547  0.891122      2.558723   3.858203
+# 4          14.5  42.600000  30.166667             0.593601    0.333484   13.133333    1.333333     0.466667     27.100000    13.100000   0.481643   0.711259  1.091690      2.846986   4.247679
+# n_gt                   42.491667
+# n_ms_all               26.341667
+# f_weighted_corr_seg     0.699550
+# f_corr_seg              0.393480
+# n_corr_seg             14.716667
+# n_over_seg              0.941667
+# n_under_seg             0.375000
+# n_missed_seg           26.033333
+# n_noise_seg             8.783333
+# laplacian               0.500908
+# bilateral               0.722133
+# mesh                    1.123423
+# fastga_total            2.597393
+# polylidar               3.848203
+# dtype: float64
+
 
 
