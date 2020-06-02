@@ -26,6 +26,8 @@ def mark_invalid_planes(pc_raw, auxiliary: dict, planes):
                   gt_labels_over_seg=[0, 0, 1], ms_labels_under_seg=[0.5, 0.5, 0.5])
     meshes = []
     for key, val in auxiliary.items():
+        if 'map' in key:
+            continue
         all_points = []
         if 'gt' in key:
             for plane_idx in val:
@@ -65,7 +67,8 @@ def create_open_3d_pcd(points, clusters=None, cmap=plt.cm.tab20):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     if clusters is not None:
-        colors = get_colors(clusters, colormap=cmap)
+        colors = cmap(clusters.astype(np.int))
+        # colors = get_colors(clusters, colormap=cmap)
         pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
     return pcd
 

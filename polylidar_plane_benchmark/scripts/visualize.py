@@ -144,7 +144,6 @@ def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
     all_planes_classified = convert_planes_to_classified_point_cloud(all_planes, tri_mesh, avg_peaks)
     # paint the planes
     # all_planes_classified.append(dict(triangles=np.array([51032])))
-    tri_mesh_o3d_painted = paint_planes(all_planes_classified, tri_mesh_o3d)
     # del all_planes_classified[-1]
 
     # can be evaluated by polygons (using downsampled image) or just the planes
@@ -154,6 +153,7 @@ def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
     # results, auxiliary = evaluate(gt_image, all_planes_classified)
     # get results
     results, auxiliary = evaluate(pc_image, all_planes_classified, tcomp=0.8)
+    tri_mesh_o3d_painted = paint_planes(all_planes_classified, auxiliary, tri_mesh_o3d)
 
     # create invalid plane markers, green = gt_label_missed, red=ms_labels_noise, blue=gt_label_over_seg,gray=ms_label_under_seg
     invalid_plane_markers = mark_invalid_planes(pc_raw, auxiliary, all_planes_classified)

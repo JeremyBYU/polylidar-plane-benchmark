@@ -142,7 +142,7 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilate
 def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.005):
     " Apply polygon filtering algorithm, return Open3D Mesh Lines "
     config_pp = dict(filter=dict(hole_area=dict(min=0.025, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.05)),
-                     positive_buffer=0.00, negative_buffer=0.00, simplify=0.02)
+                     positive_buffer=0.00, negative_buffer=0.00, simplify=0.0)
     # config_pp = dict(filter=dict(hole_area=dict(min=0.00, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.0001)),
     #                  positive_buffer=0.00, negative_buffer=0.0, simplify=0.00)
     t1 = time.perf_counter()
@@ -154,7 +154,7 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 
 
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
-                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=250,
+                                          polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=2000,
                                                                 z_thresh=0.1, norm_thresh=0.95, norm_thresh_min=0.95, min_hole_vertices=50, task_threads=4),
                                           filter_polygons=True, pl_=None, optimized=True):
 
@@ -257,9 +257,9 @@ def convert_polygons_to_classified_point_cloud(all_polygons, tri_mesh, all_norma
     return all_classified_planes
 
 
-def paint_planes(all_planes, tri_mesh_o3d):
-    number_of_planes = len(all_planes)
-    all_colors = cc.cm.glasbey_bw(range(number_of_planes))[:, :3]
+def paint_planes(all_planes, auxiliary, tri_mesh_o3d):
+    colors = auxiliary['map_gt_id_to_ms']
+    all_colors = cc.cm.glasbey_bw(colors)[:, :3]
     all_triangles = [plane['triangles'] for plane in all_planes]
 
     new_mesh = assign_some_vertex_colors(tri_mesh_o3d, all_triangles, all_colors)

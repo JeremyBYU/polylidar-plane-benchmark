@@ -435,10 +435,18 @@ def evaluate(gt_image, planes_ms, tcomp=0.80, misc=''):
     gt_labels_over_seg = gt_unique_labels_filtered[np.ma.make_mask(over_seg_final)]
     ms_labels_under_seg = np.where(np.ma.make_mask(under_seg_final))[0]
 
+    # get a mapping for the gt colors ids for the *correctly** segmented planes
+    rows, cols = np.where(correct_seg_final)
+    map_gt_id_to_ms = np.full((n_ms,), 100, dtype=np.int)
+    map_gt_id_to_ms[cols] = gt_unique_labels_filtered[rows]
+
     results = dict(n_gt=n_gt, n_ms_all=n_ms_all,f_weighted_corr_seg=f_weighted_corr_seg, f_corr_seg=f_corr_seg, n_corr_seg=n_corr_seg, n_over_seg=n_over_seg, n_under_seg=n_under_seg, n_missed_seg=n_missed_seg, n_noise_seg=n_noise_seg)
-    auxiliary = dict(gt_labels_missed=gt_labels_missed, ms_labels_noise=ms_labels_noise, gt_labels_over_seg=gt_labels_over_seg, ms_labels_under_seg=ms_labels_under_seg)
+    auxiliary = dict(gt_labels_missed=gt_labels_missed, ms_labels_noise=ms_labels_noise, gt_labels_over_seg=gt_labels_over_seg, ms_labels_under_seg=ms_labels_under_seg, map_gt_id_to_ms=map_gt_id_to_ms)
 
     logger.info("f_corr: %.2f; f_weighted_corr: %.2f; n_corr: %d; n_over_seg: %d; n_under_seg: %d; n_missed_seg: %d; n_noise_seg: %d",
             f_corr_seg, f_weighted_corr_seg, n_corr_seg, n_over_seg, n_under_seg, n_missed_seg, n_noise_seg)
 
     return results, auxiliary
+
+
+    # signed_distance = predicted_normal(any_point_on_plane - actual_point)
