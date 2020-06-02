@@ -81,7 +81,7 @@ def mesh(input_file: str, stride, loops, llambda, kernel_size, loops_bilateral):
 @click.option('-ks', '--kernel-size', type=int, default=3)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
 def ga(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
-    """Visualize Gaussian Accumulator File"""
+    """Visualize Gaussian Accumulator From PCD File"""
     pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(
         input_file, stride, loops, llambda, loops_bilateral, kernel_size=kernel_size)
 
@@ -99,7 +99,7 @@ def ga(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
 @click.option('-ks', '--kernel-size', type=int, default=3)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
 def polygons(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
-    """Visualize Polygon Extraction File"""
+    """Visualize Polygon Extraction PCD File"""
     pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(
         input_file, stride, loops, llambda, loops_bilateral, kernel_size=kernel_size)
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, _ = extract_all_dominant_plane_normals(tri_mesh)
@@ -125,7 +125,7 @@ def plot_triangle_normals(normals: np.ndarray):
 @click.option('-ks', '--kernel-size', type=int, default=3)
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
 def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
-    """Visualize Polygon Extraction File"""
+    """Visualize Plane Extraction from PCD File"""
     pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, mesh_timings = load_pcd_and_meshes(
         input_file, stride, loops, llambda, loops_bilateral, kernel_size=kernel_size)
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, fastga_timings = extract_all_dominant_plane_normals(
@@ -173,7 +173,7 @@ def planes(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
 @click.option('-lb', '--loops-bilateral', type=int, default=0)
 @click.pass_context
 def planes_all(ctx, variance, data, stride, loops, llambda, kernel_size, loops_bilateral):
-    """Visualize Polygon Extraction from training/testing/gt set"""
+    """Visualize Plane Extraction from training/testing/gt set"""
     if int(variance) == 0:
         base_dir = SYNPEB_DIR_TRAIN_GT if data == "train" else SYNPEB_DIR_TEST_GT
     else:

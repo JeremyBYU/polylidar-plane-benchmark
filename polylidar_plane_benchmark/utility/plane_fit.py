@@ -1,11 +1,15 @@
 """This module contains plane fitting procedures. This is only needed to *evaluate* RMSE of a plane
 
 """
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
-
+np.set_printoptions(threshold=3600, linewidth=350, precision=6, suppress=True)
 
 # Source: https://stackoverflow.com/a/38770513/9341063
+
+
 def PCA(data, correlation=False, sort=True):
     """ Applies Principal Component Analysis to the data
 
@@ -65,6 +69,8 @@ def PCA(data, correlation=False, sort=True):
     return eigenvalues, eigenvectors
 
 # Source: https://stackoverflow.com/a/38770513/9341063
+
+
 def best_fitting_plane(points, equation=False):
     """ Computes the best fitting plane of the given points
 
@@ -98,7 +104,7 @@ def best_fitting_plane(points, equation=False):
     w, v = PCA(points)
 
     #: the normal of the plane is the last eigenvector
-    normal = v[:,2]
+    normal = v[:, 2]
     normal = normal / np.linalg.norm(normal)
 
     #: get a point from the plane
@@ -112,6 +118,82 @@ def best_fitting_plane(points, equation=False):
     else:
         return point, normal
 
-def calculate_rmse(points):
-    point, normal = best_fitting_plane(points)
 
+def point_to_plane_distance_simple(points, p_point, p_normal: np.array):
+    distance = []
+    for i in range(points.shape[0]):
+        point = points[i, :]
+        signed_distance = p_normal.dot(p_point - point)
+        distance.append(signed_distance)
+    distance = np.array(distance)
+    rmse = np.sqrt(np.mean(distance ** 2))
+    return distance, rmse
+
+
+def calculate_rmse(points: np.array, p_point: np.array, p_normal: np.array):
+    points_a = points - p_point
+    distance = points_a @ p_normal
+    distance = np.array(distance)
+    rmse = np.sqrt(np.mean(distance ** 2))
+    return distance, rmse
+
+
+def fit_plane_and_get_rmse(points: np.array):
+    """Fit Plane to 3D point and return RMSE
+
+    Arguments:
+        points {np.array} -- Point cloud, NX3
+
+    Returns:
+        tuple(point, normal, rmse) -- Return a for a point on the plane, its normal, and the RMSE
+    """
+
+    point, normal = best_fitting_plane(points)
+    distance, rmse = calculate_rmse(points, point, normal)
+    return point, normal, distance, rmse
+
+
+def main():
+    direction = 0.7071
+    normalizing = np.sqrt(3 * direction * direction)
+    unit = direction / normalizing
+    a = unit
+    b = unit
+    c = unit
+    d = 1
+
+    noise = 1
+
+    print(f"Ground Truth Normal: [{a:.2f},{b:.2f},{c:.2f}], d: {d}")
+
+    # Create point cloud
+    pc_gt = []
+    pc_ns = []
+    for x in range(-10, 10, 1):
+        for y in range(-10, 10, 1):
+            true_z = -(a * x + b * y) / c + d
+            noise_z = true_z + np.random.rand() * noise
+            pc_gt.append([x, y, true_z])
+            pc_ns.append([x, y, noise_z])
+
+    pc_gt = np.array(pc_gt)
+    pc_ns = np.array(pc_ns)
+
+    # fit plane and get rmse
+    point, normal, distance, rmse = fit_plane_and_get_rmse(pc_ns)
+    print(f"Predicted Normal: {normal}; point: {point}; RMSE: {rmse:.3f}")
+
+    # plot data
+    plt.figure()
+    ax = plt.subplot(111, projection='3d')
+    ax.scatter(pc_ns[:, 0], pc_ns[:, 1], pc_ns[:, 2], color='b')
+    plt.show()
+
+    # norms = np.apply_along_axis(np.linalg.norm, 1, pc_ns)
+    # pc_ns_norm = pc_ns / np.expand_dims(norms, axis=1)
+    # ax.scatter(pc_ns_norm[:, 0], pc_ns_norm[:, 1], pc_ns_norm[:, 2], color='g')
+    # print(pc_ns)
+
+
+if __name__ == "__main__":
+    main()

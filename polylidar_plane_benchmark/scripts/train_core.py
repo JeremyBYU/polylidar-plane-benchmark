@@ -98,7 +98,7 @@ def evaluate_with_params(param_set, param_index, variance, counter=None, data='t
                       'kernel_size', 'loops_bilateral', 'loops_laplacian', 'sigma_angle',
                       'norm_thresh_min', 'stride', 'min_triangles', 'predict_loops_laplacian',
                       'n_gt', 'n_ms_all', 'f_weighted_corr_seg', 'f_corr_seg', 'n_corr_seg',
-                      'n_over_seg', 'n_under_seg', 'n_missed_seg', 'n_noise_seg',
+                      'n_over_seg', 'n_under_seg', 'n_missed_seg', 'n_noise_seg', 'rmse',
                       'laplacian', 'bilateral', 'mesh', 'fastga_total', 'fastga_integrate',
                       'fastga_peak', 'polylidar']
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)

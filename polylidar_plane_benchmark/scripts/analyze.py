@@ -179,7 +179,7 @@ def test(directory: Path):
     """ Show results of Polylidar on dataset """
     files: List[Path] = [e for e in directory.iterdir() if e.is_file() and '.csv' in e.suffix and 'test' in e.name]
     df = create_dataframe_from_file_list(files)
-    columns_metrics = ['n_gt', 'n_ms_all', 'f_weighted_corr_seg',
+    columns_metrics = ['n_gt', 'n_ms_all', 'f_weighted_corr_seg', 'rmse',
                        'f_corr_seg', 'n_corr_seg', 'n_over_seg', 'n_under_seg', 'n_missed_seg',
                        'n_noise_seg', 'laplacian', 'bilateral', 'mesh', 'fastga_total', 'polylidar']
     columns = ['variance', 'fname'] + columns_metrics
