@@ -304,10 +304,10 @@ def create_mesh_from_organized_point_cloud(pcd, rows=500, cols=500, stride=2, ca
 
     pcd_mat = MatrixDouble(pcd_, copy=True)
     t1 = time.perf_counter()
-    tri_mesh = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride, calc_normals=calc_normals)
+    tri_mesh, tri_map = extract_tri_mesh_from_organized_point_cloud(pcd_mat, rows, cols, stride, calc_normals=calc_normals)
     t2 = time.perf_counter()
     time_elapsed = (t2 - t1) * 1000
-    return tri_mesh, time_elapsed
+    return tri_mesh, tri_map, time_elapsed
 
 
 # def create_mesh_from_organized_point_cloud_with_o3d(pcd, rows=500, cols=500, stride=2):
@@ -359,6 +359,12 @@ def plot_triangle_normals(normals:np.ndarray, normals2:np.ndarray):
     ax2.imshow(im2, origin='upper')
     plt.show()
 
+def pick_valid_normals(tri_map, opc_normals):
+    tri_map_np = np.asarray(tri_map)
+    mask = tri_map_np != np.iinfo(tri_map_np.dtype).max
+    tri_norms = np.ascontiguousarray(opc_normals[mask,:])
+    return tri_norms
+
 def create_meshes_cuda(opc, **kwargs):
     """Creates a mesh from a noisy organized point cloud
 
@@ -373,8 +379,9 @@ def create_meshes_cuda(opc, **kwargs):
         [tuple(mesh, o3d_mesh)] -- polylidar mesh and o3d mesh reperesentation
     """
     smooth_opc, opc_normals, timings = laplacian_then_bilateral_opc_cuda(opc, **kwargs)
-    tri_mesh, time_elapsed_mesh = create_mesh_from_organized_point_cloud(smooth_opc, calc_normals=False)
-    opc_normals_cp = MatrixDouble(opc_normals, copy=True) # copy here
+    tri_mesh, tri_map, time_elapsed_mesh = create_mesh_from_organized_point_cloud(smooth_opc, calc_normals=False)
+    tri_norms = pick_valid_normals(tri_map, opc_normals)
+    opc_normals_cp = MatrixDouble(tri_norms, copy=True) # copy here!!!!!
     # plot_triangle_normals(np.asarray(tri_mesh.triangle_normals), opc_normals)
     tri_mesh.set_triangle_normals(opc_normals_cp) # copy again here....sad
     timings = dict(**timings, mesh=time_elapsed_mesh)
