@@ -46,7 +46,7 @@ def get_fpaths(variance, data='train'):
 
 
 polylidar_kwargs_default = dict(alpha=0.0, lmax=0.1, min_triangles=200,
-                                z_thresh=0.1, norm_thresh=0.96, norm_thresh_min=0.96,
+                                z_thresh=0.07, norm_thresh=0.96, norm_thresh_min=0.96,
                                 min_hole_vertices=50, task_threads=4)
 level_default = 5
 

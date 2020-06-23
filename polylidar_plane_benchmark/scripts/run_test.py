@@ -27,15 +27,57 @@ def main():
     params = dict(kernel_size=5, loops_laplacian=2, loops_bilateral=2, sigma_angle=0.1,
                     min_triangles=1000, norm_thresh_min=0.95, stride=1, predict_loops_laplacian=True)
     dataset = 'test'
-
+    print("Evaluating Variance 1")
     evaluate_with_params([params], 0, 1, None, dataset)
+    print("Evaluating Variance 2")
     evaluate_with_params([params], 0, 2, None, dataset)
+    print("Evaluating Variance 3")
     evaluate_with_params([params], 0, 3, None, dataset)
+    print("Evaluating Variance 4")
     evaluate_with_params([params], 0, 4, None, dataset)
 
 
 if __name__ == "__main__":
     main()
+
+
+# Stride 1 
+# [4 rows x 16 columns]
+# n_gt                   42.491667
+# n_ms_all               25.316667
+# f_weighted_corr_seg     0.762061
+# rmse                    0.009151
+# f_corr_seg              0.470380
+# n_corr_seg             18.308333
+# n_over_seg              0.266667
+# n_under_seg             0.400000
+# n_missed_seg           23.033333
+# n_noise_seg             6.058333
+# laplacian               1.227258
+# bilateral               2.994489
+# mesh                    8.497396
+# fastga_total            6.612652
+# polylidar              14.829927
+# dtype: float64
+
+
+# Stride 2
+# n_gt                   42.491667
+# n_ms_all               26.400000
+# f_weighted_corr_seg     0.697639
+# rmse                    0.009437
+# f_corr_seg              0.392567
+# n_corr_seg             14.658333
+# n_over_seg              0.950000
+# n_under_seg             0.341667
+# n_missed_seg           26.150000
+# n_noise_seg             8.908333
+# laplacian               0.472313
+# bilateral               0.715748
+# mesh                    1.793931
+# fastga_total            2.583590
+# polylidar               4.291157
+# dtype: float64
 
 # These parameters are not used, but kept for posterity. **IF** you were to split parameters by variance
 # This split would give good results

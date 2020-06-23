@@ -96,7 +96,7 @@ Based on these results parameters were chosen and used in the test set shown bel
 
 ### Run Test
 
-1. `python polylidar_plane_benchmark/scripts/run_test.py` - This creates 4 csv files(one for each level of variance) with the results in `data/synpeb_results` . Files will be named `synpeb_test_variance_{var}_params_0.csv` .
+1. `python polylidar_plane_benchmark/scripts/run_test.py` - This creates 4 csv files(one for each level of variance) with the results in `data/synpeb_results`. Files will be named `synpeb_test_variance_{var}_params_0.csv` .
 2. `ppb analyze test` - This will print out mean values of metrics by variance group. A second print out averages everything (reported in paper)
 
 Backups of previous runs are in the folders `backup_stride_1` and `backup_stride_2` .
