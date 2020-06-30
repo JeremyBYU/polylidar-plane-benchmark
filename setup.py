@@ -18,7 +18,7 @@ setup(
     author_email="jdcasta@umich.edu",
     description="Polylidar Plane Benchmark",
     license="MIT",
-    keywords="concave hull benchmark",
+    keywords="organized point cloud segmentation benchmark",
     url="https://github.com/JeremyBYU/polylidar-plane-benchmark",   # project home page, if any
     project_urls={
         "Bug Tracker": "https://github.com/JeremyBYU/polylidar-plane-benchmark/issues",

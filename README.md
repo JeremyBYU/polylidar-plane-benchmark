@@ -31,6 +31,24 @@ synpeb
     └── var4
 ```
 
+## Installation
+
+Please begin with first installing a python virtual environment.
+
+1. Install [conda](https://conda.io/projects/conda/en/latest/) - [Why?](https://medium.freecodecamp.org/why-you-need-python-environments-and-how-to-manage-them-with-conda-85f155f4353c)
+2. `conda create --name realsense python=3.6 && source activate realsense` - Create new virtual python environment
+
+There are three main dependencies which must be installed. Please `git clone` each of these repositories in separate directories in your workspace. You will need CMake to build each of these repositories. Please note each repo's installation section about building and *installing* `python` bindings. Please be sure that you have activated your newly created virtual environment when building these repositories (`realsense`).
+
+1. [Polylidar3D](https://github.com/JeremyBYU/polylidar)
+2. [OPF](https://github.com/JeremyBYU/OrganizedPointFilters)
+3. [FastGA](https://github.com/JeremyBYU/FastGaussianAccumulator)
+
+Once that is all done just install any dependencies needed in this repo.
+
+1. `conda install -c conda-forge opencv shapely` - These packages give the most issue for binary dependencies for Windows users, hence why conda should handle them.
+2. `pip install -e .` - Install any dependencies for this repository (`polylidar_plane_benchmark`).
+
 ## Command Line Interface
 
 A command line interface is provided:
@@ -76,7 +94,25 @@ Just type command --help to get more info. For example `ppb pcd --help` .
 
 I would just focus on `pcd` , `mesh` , `planes` , and `polygons` commands. In that order.
 
-### Run Train
+### Analyze
+
+```
+(ppb) ➜  polylidar-plane-benchmark git:(master) ✗ ppb analyze --help  
+Usage: ppb analyze [OPTIONS] COMMAND [ARGS]...
+
+  Analyze Data
+
+Options:
+  --help  Show this message and exit.  [default: False]
+
+Commands:
+  fit-laplacian  Analyze noise in point clouds and determine a *sufficient*...
+  pcd-noise      Visualize noise level estimation in point cloud files
+  test           Show results of Polylidar on dataset
+  training       Show results of hyperparameters for polylidar
+```
+
+#### Run Train
 
 This will perform a hyperparameter search of parameters in Polylidar3D that effect accuracy (specifically the % of correctly captured planes, *f*). It only runs on the training set.
 This runs training in parallel using Python multiprocessing, each thread works on a set files with the same variance. All data is saved in csv files under `data/synpeb_results` folder. File names will have the form
@@ -84,7 +120,6 @@ This runs training in parallel using Python multiprocessing, each thread works o
 
 1. `python polylidar_plane_benchmark/scripts/run_train.py` - 
 
-### Analyze Training Results
 
 This will analyze the result of the training by reading the CSV files. Its shows many plots that show how accuracy is affected by changing parameters. Here is an example:
 
@@ -94,7 +129,7 @@ This will analyze the result of the training by reading the CSV files. Its shows
 
 Based on these results parameters were chosen and used in the test set shown below.
 
-### Run Test
+#### Run Test
 
 1. `python polylidar_plane_benchmark/scripts/run_test.py` - This creates 4 csv files(one for each level of variance) with the results in `data/synpeb_results`. Files will be named `synpeb_test_variance_{var}_params_0.csv` .
 2. `ppb analyze test` - This will print out mean values of metrics by variance group. A second print out averages everything (reported in paper)
