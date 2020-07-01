@@ -42,12 +42,13 @@ loops_laplacian_stride_1 = [2, 4, 6, 8]
 splits_stride_2 = np.array([.0002, .0003, .00045])
 loops_laplacian_stride_2 = [2, 4, 6, 8]
 
+
 def predict_loops_laplacian(pc_image, stride=1, samples=100, sample_size=2):
     """Very simple model that estimates point cloud noise and predicts the number of laplacian smoothing iterations needed
-    
+
     Arguments:
         pc_image {ndarray} -- Organized Point Cloud
-    
+
     Keyword Arguments:
         stride {int} -- How much did you downsample the image (default: {1})
         samples {int} -- How many samples to estimate the point cloud noise (default: {100})
@@ -65,18 +66,21 @@ def predict_loops_laplacian(pc_image, stride=1, samples=100, sample_size=2):
     predicted_loops = loops[idx]
     return predicted_loops
 
+
 def estimate_pc_noise(pc_image, samples=100, sample_size=2):
     """Estimates point cloud noise by sampling
     Looks at a sample_size X sample_size window and computes the cross covariance
     100 samples are taken uniformly from the organized point cloud
-    
+    Note that this would be so much faster using C++, just didn't have time to do it
+    It currently takes about 1-1.5 ms on my machine.
+
     Arguments:
         pc_image {[type]} -- [description]
-    
+
     Keyword Arguments:
         samples {int} -- [description] (default: {100})
         sample_size {int} -- [description] (default: {2})
-    
+
     Returns:
         [float] -- noise
     """
@@ -92,14 +96,15 @@ def estimate_pc_noise(pc_image, samples=100, sample_size=2):
     matrix_list = []
     for row in range(sample_size, rows, row_skip):
         for col in range(sample_size, cols, col_skip):
-            pc_sampled = np.ascontiguousarray(pc_image[row:row + sample_size, col:col + sample_size, :3].reshape((pc_size, 3)).T)
+            pc_sampled = np.ascontiguousarray(
+                pc_image[row:row + sample_size, col:col + sample_size, :3].reshape((pc_size, 3)).T)
             matrix_list.append(pc_sampled)
 
     t2 = time.perf_counter()
 
     elapsed_time = (t2 - t1) * 1000
     logger.debug("Noise Estimation - Gathering data took (ms): %.3f ", elapsed_time)
-    
+
     noise = np.zeros(shape=(len(matrix_list),))
     for i, pc_matrix in enumerate(matrix_list):
         # t3 = time.perf_counter_ns()
@@ -116,7 +121,6 @@ def estimate_pc_noise(pc_image, samples=100, sample_size=2):
     logger.debug("Noise Estimation - Cross Covariance Took (ms): %.3f ", elapsed_time)
 
     return median_noise
-
 
 
 def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilateral=0, kernel_size=3, **kwargs):
@@ -139,10 +143,10 @@ def load_pcd_and_meshes(input_file, stride=2, loops=5, _lambda=0.5, loops_bilate
     return pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, timings
 
 
-def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.005):
+def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.005,
+                                      config_pp=dict(filter=dict(hole_area=dict(min=0.025, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.05)),
+                                                     positive_buffer=0.00, negative_buffer=0.00, simplify=0.0), **kwargs):
     " Apply polygon filtering algorithm, return Open3D Mesh Lines "
-    config_pp = dict(filter=dict(hole_area=dict(min=0.025, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.05)),
-                     positive_buffer=0.00, negative_buffer=0.00, simplify=0.0)
     # config_pp = dict(filter=dict(hole_area=dict(min=0.00, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.0001)),
     #                  positive_buffer=0.00, negative_buffer=0.0, simplify=0.00)
     t1 = time.perf_counter()
@@ -156,7 +160,7 @@ def filter_and_create_open3d_polygons(points, polygons, rm=None, line_radius=0.0
 def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
                                           polylidar_kwargs=dict(alpha=0.0, lmax=0.1, min_triangles=2000,
                                                                 z_thresh=0.1, norm_thresh=0.95, norm_thresh_min=0.95, min_hole_vertices=50, task_threads=4),
-                                          filter_polygons=True, pl_=None, optimized=True):
+                                          filter_polygons=True, pl_=None, optimized=True, **kwargs):
 
     if pl_ is not None:
         pl = pl_
@@ -183,7 +187,7 @@ def extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks,
             polygons_for_normal = all_polygons[i]
             # print(polygons_for_normal)
             if len(polygons_for_normal) > 0:
-                poly_lines, _ = filter_and_create_open3d_polygons(vertices, polygons_for_normal, rm=rm)
+                poly_lines, _ = filter_and_create_open3d_polygons(vertices, polygons_for_normal, rm=rm, **kwargs)
                 all_poly_lines.extend(poly_lines)
 
     timings = dict(polylidar=polylidar_time)

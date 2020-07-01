@@ -103,7 +103,12 @@ def polygons(input_file, stride, loops, llambda, kernel_size, loops_bilateral):
     pc_raw, pcd_raw, pc_image, tri_mesh, tri_mesh_o3d, _ = load_pcd_and_meshes(
         input_file, stride, loops, llambda, loops_bilateral, kernel_size=kernel_size)
     avg_peaks, pcd_all_peaks, arrow_avg_peaks, colored_icosahedron, _ = extract_all_dominant_plane_normals(tri_mesh)
-    _, _, all_poly_lines, _ = extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks)
+
+    # use these parameters for visualization.  Open3D's visualizer will chug if there are two many vetices in the  `LineMesh` for polygons
+    # Note that for the benchmark test there is no visualization or evaluation on polygons; only on planes.
+    config_pp = dict(filter=dict(hole_area=dict(min=0.00, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.0001)),
+                    positive_buffer=0.01, negative_buffer=0.01, simplify=0.02)
+    _, _, all_poly_lines, _ = extract_planes_and_polygons_from_mesh(tri_mesh, avg_peaks, config_pp=config_pp)
     mesh_3d_polylidar = []
     mesh_3d_polylidar.extend(flatten([line_mesh.cylinder_segments for line_mesh in all_poly_lines]))
 

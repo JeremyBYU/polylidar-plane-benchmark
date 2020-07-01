@@ -1,3 +1,6 @@
+"""This code contains evaluation metrics for the benchmark
+Only the function `evaluate` should be used.
+"""
 import logging
 import numpy as np
 
@@ -211,6 +214,18 @@ def evaluate_incorrect(gt_image, planes_ms, tcomp=0.80, misc=''):
 
 
 def evaluate_rmse(gt_image, planes_ms, outlier_rmse=10.0):
+    """Evaluates RMSE error for each machine segmented plane
+
+    Args:
+        gt_image (ndarray): Point indices for Ground Truth
+        planes_ms (list(dict)): Machine Segmented planes
+        outlier_rmse (float, optional): Don't include planes with an RMSE value greater than this. 
+                                        This value is taken from SynPEB: https://github.com/acschaefer/ppe/blob/8804bba91debd1917188b509246b64b5e1401d87/matlab/experiments/evalexp.m#L160
+                                        Defaults to 10.0
+
+    Returns:
+        [float]: The RSME of all predicted MS planes
+    """
     gt_flat = gt_image.reshape((gt_image.shape[0] * gt_image.shape[1], 4)) 
     rmse_np = []
     for ms_index, plane_ms in enumerate(planes_ms):
@@ -218,8 +233,12 @@ def evaluate_rmse(gt_image, planes_ms, outlier_rmse=10.0):
         pc_ms = gt_flat[ms_point_idx_set][:, :3]
         _, _, distance, rmse = fit_plane_and_get_rmse(pc_ms)
         if rmse < outlier_rmse:
-            rmse_np.append(distance)
+            rmse_np.append(distance) # distance is signed distance
+        else:
+            # NOTE - this is never triggered. The default RMSE value is too high (verified 06/30/2020)
+            logger.warning("Outlier!")
     rmse_np = np.concatenate(rmse_np, axis=0)  
+    # now we get RMSE of all machine segmented planes at once. This is the way its done in PPE evaluation.
     rmse_total = np.sqrt(np.mean(rmse_np ** 2))
     return rmse_total
 
