@@ -271,7 +271,7 @@ def paint_planes(all_planes, auxiliary, tri_mesh_o3d):
 
 
 def get_image_peaks(ico_chart, ga, level=2, with_o3d=True,
-                    find_peaks_kwargs=dict(threshold_abs=2, min_distance=1, exclude_border=False, indices=False),
+                    find_peaks_kwargs=dict(threshold_abs=3, min_distance=1, exclude_border=False, indices=False),
                     cluster_kwargs=dict(t=0.10, criterion='distance'),
                     average_filter=dict(min_total_weight=0.01),
                     **kwargs):
